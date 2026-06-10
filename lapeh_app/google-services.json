@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1056452958379",
+    "project_id": "lapeh-51e34",
+    "storage_bucket": "lapeh-51e34.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1056452958379:android:8fc1ac6dc8621b3385bfee",
+        "android_client_info": {
+          "package_name": "com.lapeh.android"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXORKGf8t19iyr1pngD0hB9Wef9CX0uc4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
