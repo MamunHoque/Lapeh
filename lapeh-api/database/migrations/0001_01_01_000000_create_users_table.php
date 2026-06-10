@@ -15,11 +15,15 @@ return new class extends Migration
             $table->string('phone')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'restaurant', 'driver', 'fleet'])->default('driver');
+            $table->enum('role', ['admin', 'sender', 'driver', 'fleet'])->default('driver');
             $table->enum('status', ['active', 'suspended'])->default('active');
             $table->enum('locale', ['en', 'ar'])->default('en');
             $table->string('fcm_token')->nullable();
             $table->string('avatar')->nullable();
+            // Phone OTP verification
+            $table->timestamp('phone_verified_at')->nullable();
+            $table->string('phone_otp_hash')->nullable();
+            $table->timestamp('phone_otp_expires_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

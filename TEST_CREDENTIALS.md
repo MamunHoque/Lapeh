@@ -1,12 +1,16 @@
 # Lapeh — Test Credentials
 
+Lapeh is a generic **sender → courier** parcel-delivery platform (Uber-Parcel style).
+A *sender* (individual or business) creates a delivery request with package items;
+the *receiver* confirms drop-off via a tokenized web link; a *driver* delivers.
+
 ## URLs
 
 | Interface | URL |
 |-----------|-----|
 | Admin portal | http://localhost:8000/admin |
 | API base | http://localhost:8000/api |
-| Customer web | http://localhost:8000/c/{location_token} |
+| Receiver web link | http://localhost:8000/c/{location_token} |
 
 ---
 
@@ -17,44 +21,53 @@
 | URL | http://localhost:8000/admin/login |
 | Phone | `+9710000000` |
 | Password | `admin1234` |
-| Name | Lapeh Admin |
-| Email | admin@lapeh.app |
 
 ---
 
-## Flutter App / API — Restaurant
+## Sender — Individual (verified & active)
 
 | Field | Value |
 |-------|-------|
 | Phone | `+971501111111` |
-| Password | `rest1234` |
-| Name | Al Safadi Manager |
-| Restaurant | Al Safadi · Jumeirah |
-| Zone | Jumeirah |
+| Password | `sender1234` |
+| Name | Mariam Ahmed |
+| Type | Individual |
+| Default pickup | Jumeirah Beach Road, Dubai |
 
----
-
-## Flutter App / API — Driver 1 (online)
+## Sender — Business (verified & active)
 
 | Field | Value |
 |-------|-------|
-| Phone | `+971502222222` |
-| Password | `driver1234` |
-| Name | Bilal Hassan |
-| Vehicle | Bike · Plate A 12345 |
-| Status | online (at startup) |
+| Phone | `+971501111112` |
+| Password | `sender1234` |
+| Name / contact | Omar Haddad |
+| Type | Business |
+| Business | Gulf Gadgets Store · Electronics |
+| Default pickup | Business Bay, Dubai |
+
+> Seeded senders are already OTP-verified — log in and use them immediately.
 
 ---
 
-## Flutter App / API — Driver 2 (offline)
+## Driver 1 (online) / Driver 2 (offline)
 
-| Field | Value |
-|-------|-------|
-| Phone | `+971503333333` |
-| Password | `driver1234` |
-| Name | Karim Nasser |
-| Vehicle | Car · Plate B 67890 |
-| Status | offline (at startup) |
+| Field | Driver 1 | Driver 2 |
+|-------|----------|----------|
+| Phone | `+971502222222` | `+971503333333` |
+| Password | `driver1234` | `driver1234` |
+| Name | Bilal Hassan | Karim Nasser |
+| Vehicle | Bike · A 12345 | Car · B 67890 |
+| Status | online | offline |
+
+---
+
+## Phone OTP (development)
+
+No SMS provider is wired yet. In `local`/`testing`/`development`:
+- The OTP is **returned in the API response** (`dev_otp`) and logged to `storage/logs`.
+- The **master OTP `123456`** is always accepted (configurable via `MASTER_OTP`).
+
+New signups from the Flutter app prefill the dev OTP automatically.
 
 ---
 
@@ -62,40 +75,47 @@
 
 ```bash
 cd /Volumes/Mamun/Code/lapeh/lapeh-api
-
 php artisan serve          # API + admin portal on :8000
-php artisan queue:work     # background jobs (offer dispatch, expiry)
+php artisan queue:work     # offer dispatch / expiry jobs
 php artisan reverb:start   # WebSocket on :8080
 ```
 
 ---
 
-## Sandbox order flow (happy path)
+## Sandbox flow (happy path)
 
-1. Log in as **restaurant** → New delivery → fill customer name, phone, order value → Create
-2. Copy the customer link from the waiting screen (or check the log for the SMS)
-3. Open the customer link in a browser → confirm location → click Pay (sandbox auto-pays)
-4. App auto-advances to tracking; dispatch engine offers the order to **Bilal Hassan**
-5. Log in as **Bilal Hassan** in the driver app → go online → accept the incoming request
-6. Step through delivery flow → enter the OTP shown on the customer tracking page → Confirm
+1. **Sign up** a sender in the app (or log in with a seeded sender).
+2. Verify the phone with the **dev OTP** (prefilled) or `123456`.
+3. **New delivery** → pickup is prefilled from the default; add receiver name/phone and
+   one or more **package items** (name, qty, unit value) → Create.
+4. Copy the **receiver link** from the waiting screen (or read it from the log).
+5. Open the link → it shows the **package items**, then confirm drop-off location → Pay (sandbox auto-pays).
+6. Dispatch offers the order to **Bilal Hassan**; accept in the driver app and step through delivery → enter the receiver's OTP → Confirm.
+7. **Admin → Senders / Orders** shows the sender, request and its items.
 
 ---
 
 ## API quick test (curl)
 
 ```bash
-# Login as restaurant
-curl -s -X POST http://localhost:8000/api/auth/login \
+# Register an individual sender (returns token + dev_otp)
+curl -s -X POST http://localhost:8000/api/auth/register-sender \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+971501111111","password":"rest1234"}' | jq .
+  -d '{"type":"individual","name":"Test","phone":"+971509999999","password":"secret123"}' | jq .
 
-# Login as driver
-curl -s -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"+971502222222","password":"driver1234"}' | jq .
+# Verify phone (master OTP), using the token from above
+curl -s -X POST http://localhost:8000/api/auth/verify-otp \
+  -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" \
+  -d '{"code":"123456"}' | jq .
 
-# Login as admin (API)
+# Log in as a seeded sender / driver / admin
 curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+9710000000","password":"admin1234"}' | jq .
+  -d '{"phone":"+971501111111","password":"sender1234"}' | jq .
+
+# Create a delivery request with items (sender token)
+curl -s -X POST http://localhost:8000/api/sender/orders \
+  -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" \
+  -d '{"customer_name":"Layla","customer_phone":"+971558887777",
+       "items":[{"name":"Gift","quantity":2,"unit_price":50}]}' | jq .
 ```

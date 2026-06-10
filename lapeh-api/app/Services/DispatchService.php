@@ -16,12 +16,17 @@ class DispatchService
     public function dispatch(Order $order): void
     {
         $settings = PricingSetting::current();
-        $restaurant = $order->restaurant;
 
-        // Find nearest online drivers within radius using Haversine SQL
+        // Find nearest online drivers to the pickup location (Haversine SQL).
         $radiusKm = $settings->search_radius_km;
-        $lat = $restaurant->lat;
-        $lng = $restaurant->lng;
+        $lat = $order->pickup_lat;
+        $lng = $order->pickup_lng;
+
+        // No pickup coordinates yet → cannot dispatch.
+        if ($lat === null || $lng === null) {
+            Log::warning("Order {$order->order_no} has no pickup coordinates; skipping dispatch");
+            return;
+        }
 
         $drivers = Driver::with('user')
             ->where('status', 'online')
@@ -68,14 +73,13 @@ class DispatchService
         broadcast(new DriverOfferSent($driver, $order, $offer, $timeoutSec));
 
         // FCM push so driver is woken up even when app is backgrounded
-        $restaurant = $order->restaurant;
         $offerPayload = [
             'id' => $offer->id,
             'order_no' => $order->order_no,
-            'restaurant_name' => $restaurant->name,
-            'restaurant_lat' => $restaurant->lat,
-            'restaurant_lng' => $restaurant->lng,
-            'restaurant_address' => $restaurant->address,
+            'pickup_name' => $order->sender?->displayName(),
+            'pickup_lat' => $order->pickup_lat,
+            'pickup_lng' => $order->pickup_lng,
+            'pickup_address' => $order->pickup_address,
             'delivery_fee' => $order->delivery_fee,
             'distance_km' => $order->distance_km,
             'timeout_sec' => $timeoutSec,
@@ -117,7 +121,7 @@ class DispatchService
             'actor' => $driver->user_id,
         ]);
 
-        broadcast(new OrderStatusUpdated($order->fresh(['driver', 'restaurant'])));
+        broadcast(new OrderStatusUpdated($order->fresh(['driver', 'sender'])));
 
         return $order;
     }

@@ -28,10 +28,10 @@ return [
         'updated' => 'Updated driver',
         'deleted' => 'Deleted driver',
     ],
-    'restaurant' => [
-        'created' => 'Created restaurant',
-        'updated' => 'Updated restaurant',
-        'deleted' => 'Deleted restaurant',
+    'sender' => [
+        'created' => 'Created sender',
+        'updated' => 'Updated sender',
+        'deleted' => 'Deleted sender',
     ],
     'zone' => [
         'created' => 'Created zone',

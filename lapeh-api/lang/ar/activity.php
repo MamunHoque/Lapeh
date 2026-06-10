@@ -27,10 +27,10 @@ return [
         'updated' => 'حدّث سائقاً',
         'deleted' => 'حذف سائقاً',
     ],
-    'restaurant' => [
-        'created' => 'أنشأ مطعماً',
-        'updated' => 'حدّث مطعماً',
-        'deleted' => 'حذف مطعماً',
+    'sender' => [
+        'created' => 'أنشأ مرسلاً',
+        'updated' => 'حدّث مرسلاً',
+        'deleted' => 'حذف مرسلاً',
     ],
     'zone' => [
         'created' => 'أنشأ نطاقاً',

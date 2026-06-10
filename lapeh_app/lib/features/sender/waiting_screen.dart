@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/models/order_model.dart';
-import '../../core/providers/restaurant_provider.dart';
+import '../../core/providers/sender_provider.dart';
 import '../../core/status_meta.dart';
 import '../../shared/widgets.dart';
 import 'tracking_screen.dart';
@@ -31,7 +31,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen> {
 
   Future<void> _refresh() async {
     try {
-      final updated = await ref.read(restaurantServiceProvider).getOrder(_order.id);
+      final updated = await ref.read(senderServiceProvider).getOrder(_order.id);
       if (!mounted) return;
       setState(() => _order = updated);
       // Auto-advance when customer confirms location + pays → go to tracking
@@ -58,7 +58,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen> {
   Future<void> _resend() async {
     setState(() => _resending = true);
     try {
-      await ref.read(restaurantServiceProvider).resendLink(_order.id);
+      await ref.read(senderServiceProvider).resendLink(_order.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('link_resent'))));
       }

@@ -9,14 +9,14 @@
             <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('admin.search_order_placeholder') }}" class="form-input" style="width:220px;">
             <select name="status" class="form-input form-select" style="width:180px;">
                 <option value="">{{ __('admin.all_statuses') }}</option>
-                @foreach(['waiting_for_location','location_confirmed','waiting_for_payment','paid','searching_driver','driver_assigned','arrived_at_restaurant','picked_up','on_the_way','delivered','cancelled'] as $s)
+                @foreach(['waiting_for_location','location_confirmed','waiting_for_payment','paid','searching_driver','driver_assigned','arrived_at_pickup','picked_up','on_the_way','delivered','cancelled'] as $s)
                     <option value="{{ $s }}" @selected(request('status') === $s)>{{ __('admin.st_'.$s) }}</option>
                 @endforeach
             </select>
-            <select name="restaurant_id" class="form-input form-select" style="width:180px;">
-                <option value="">{{ __('admin.all_restaurants') }}</option>
-                @foreach($restaurants as $r)
-                    <option value="{{ $r->id }}" @selected(request('restaurant_id') == $r->id)>{{ $r->name }}</option>
+            <select name="sender_id" class="form-input form-select" style="width:180px;">
+                <option value="">{{ __('admin.all_senders') }}</option>
+                @foreach($senders as $s)
+                    <option value="{{ $s->id }}" @selected(request('sender_id') == $s->id)>{{ $s->displayName() }}</option>
                 @endforeach
             </select>
             <button type="submit" class="btn btn-primary">{{ __('admin.filter') }}</button>
@@ -27,7 +27,7 @@
             <thead>
                 <tr>
                     <th>{{ __('admin.order_no') }}</th>
-                    <th>{{ __('admin.restaurant') }}</th>
+                    <th>{{ __('admin.sender') }}</th>
                     <th>{{ __('admin.customer') }}</th>
                     <th>{{ __('admin.driver') }}</th>
                     <th>{{ __('admin.status') }}</th>
@@ -41,7 +41,7 @@
                 @forelse($orders as $order)
                 <tr>
                     <td><span class="mono">{{ $order->order_no }}</span></td>
-                    <td style="font-size:12.5px;">{{ $order->restaurant->name }}</td>
+                    <td style="font-size:12.5px;">{{ $order->sender?->displayName() }}</td>
                     <td>
                         <div style="font-size:13px;">{{ $order->customer_name }}</div>
                         <div style="font-size:11px;color:var(--slate-2);">{{ $order->customer_phone }}</div>

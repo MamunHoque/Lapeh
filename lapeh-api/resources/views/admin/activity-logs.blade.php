@@ -16,7 +16,7 @@
     };
     $actionLabel = fn (string $a) => \Illuminate\Support\Facades\Lang::has('activity.'.$a) ? __('activity.'.$a) : ucfirst(str_replace(['.', '_'], ' ', $a));
     $roleLabel = fn (?string $r) => $r && \Illuminate\Support\Facades\Lang::has('admin.role_'.$r) ? __('admin.role_'.$r) : ucfirst($r ?? 'system');
-    $roleTone = fn (?string $r) => match ($r) { 'admin' => 'pink', 'restaurant' => 'indigo', 'driver' => 'blue', 'customer' => 'amber', default => 'grey' };
+    $roleTone = fn (?string $r) => match ($r) { 'admin' => 'pink', 'sender' => 'indigo', 'driver' => 'blue', 'customer' => 'amber', default => 'grey' };
 @endphp
 
 {{-- Filter bar --}}

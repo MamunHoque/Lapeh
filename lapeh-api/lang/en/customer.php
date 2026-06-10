@@ -38,7 +38,7 @@ return [
     'track_title' => 'Track Your Order',
     'status_searching' => 'Searching Driver',
     'status_assigned' => 'Driver Assigned',
-    'status_at_restaurant' => 'At Restaurant',
+    'status_at_pickup' => 'At Pickup',
     'status_picked_up' => 'Picked Up',
     'status_on_the_way' => 'On the Way',
     'status_delivered' => 'Delivered ✓',
@@ -53,13 +53,13 @@ return [
     'tl_paid' => 'Paid',
     'tl_searching' => 'Searching driver',
     'tl_assigned' => 'Driver assigned',
-    'tl_at_restaurant' => 'At restaurant',
+    'tl_at_pickup' => 'At pickup',
     'tl_picked_up' => 'Food picked up',
     'tl_on_the_way' => 'On the way',
     'tl_delivered' => 'Delivered',
 
     // Summary
-    'from_restaurant' => 'From :name',
+    'from_sender' => 'From :name',
     'hello' => 'Hello,',
     'delivering_to' => 'Delivering to:',
     'delivery_fee_label' => 'Delivery fee:',
@@ -72,4 +72,6 @@ return [
 
     // Language switch
     'switch_lang' => 'عربي',
+    'package_items' => 'Package items',
+    'total_value' => 'Total value',
 ];

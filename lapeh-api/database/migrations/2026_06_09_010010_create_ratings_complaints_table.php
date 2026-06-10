@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('driver_ratings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('restaurant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('sender_id')->constrained()->cascadeOnDelete();
             $table->foreignId('driver_id')->constrained()->cascadeOnDelete();
             $table->unsignedTinyInteger('rating');
             $table->json('tags')->nullable();
@@ -22,7 +22,7 @@ return new class extends Migration
         Schema::create('complaints', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('restaurant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('sender_id')->constrained()->cascadeOnDelete();
             $table->enum('type', ['late', 'damaged', 'driver_behavior', 'payment', 'other']);
             $table->text('description');
             $table->enum('status', ['open', 'under_review', 'resolved'])->default('open');

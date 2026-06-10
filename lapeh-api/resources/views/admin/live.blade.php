@@ -20,13 +20,13 @@
         </div>
         <table class="table">
             <thead>
-                <tr><th>{{ __('admin.order_no') }}</th><th>{{ __('admin.restaurant') }}</th><th>{{ __('admin.customer') }}</th><th>{{ __('admin.driver') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.distance') }}</th><th>{{ __('admin.fee') }}</th></tr>
+                <tr><th>{{ __('admin.order_no') }}</th><th>{{ __('admin.sender') }}</th><th>{{ __('admin.customer') }}</th><th>{{ __('admin.driver') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.distance') }}</th><th>{{ __('admin.fee') }}</th></tr>
             </thead>
             <tbody id="live-orders">
                 @forelse($orders as $order)
                 <tr>
                     <td><a href="{{ route('admin.orders.show', $order) }}" class="mono">{{ $order->order_no }}</a></td>
-                    <td style="font-size:12.5px;">{{ $order->restaurant->name }}</td>
+                    <td style="font-size:12.5px;">{{ $order->sender?->displayName() }}</td>
                     <td style="font-size:12.5px;">{{ $order->customer_name }}</td>
                     <td style="font-size:12.5px;">{{ $order->driver?->user?->name ?? '—' }}</td>
                     <td>@include('admin.partials.status-badge', ['status' => $order->status])</td>

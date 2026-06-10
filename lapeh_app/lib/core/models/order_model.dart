@@ -38,13 +38,14 @@ class OrderModel {
   final DateTime createdAt;
   final OrderDriver? driver;
   final List<StatusLogEntry> timeline;
+  final List<OrderItem> items;
 
-  // Restaurant info (populated for driver order payloads)
-  final String? restaurantName;
-  final double? restaurantLat;
-  final double? restaurantLng;
-  final String? restaurantAddress;
-  final String? restaurantPhone;
+  // Pickup info (from the sender; populated for driver order payloads)
+  final String? pickupName;
+  final double? pickupLat;
+  final double? pickupLng;
+  final String? pickupAddress;
+  final String? pickupPhone;
 
   const OrderModel({
     required this.id,
@@ -70,16 +71,15 @@ class OrderModel {
     required this.createdAt,
     this.driver,
     this.timeline = const [],
-    this.restaurantName,
-    this.restaurantLat,
-    this.restaurantLng,
-    this.restaurantAddress,
-    this.restaurantPhone,
+    this.items = const [],
+    this.pickupName,
+    this.pickupLat,
+    this.pickupLng,
+    this.pickupAddress,
+    this.pickupPhone,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) {
-    // Support both nested restaurant object and flat restaurant_* fields
-    final rest = j['restaurant'] as Map<String, dynamic>?;
     return OrderModel(
       id: j['id'],
       orderNo: j['order_no'],
@@ -106,19 +106,53 @@ class OrderModel {
       timeline: (j['status_timeline'] as List? ?? [])
           .map((e) => StatusLogEntry.fromJson(e))
           .toList(),
-      restaurantName: rest?['name'] ?? j['restaurant_name'],
-      restaurantLat: asDouble(rest?['lat'] ?? j['restaurant_lat']),
-      restaurantLng: asDouble(rest?['lng'] ?? j['restaurant_lng']),
-      restaurantAddress: rest?['address'] ?? j['restaurant_address'],
-      restaurantPhone: rest?['phone'] ?? j['restaurant_phone'],
+      items: (j['items'] as List? ?? [])
+          .map((e) => OrderItem.fromJson(e))
+          .toList(),
+      pickupName: j['pickup_name'],
+      pickupLat: asDouble(j['pickup_lat']),
+      pickupLng: asDouble(j['pickup_lng']),
+      pickupAddress: j['pickup_address'],
+      pickupPhone: j['pickup_phone'],
     );
   }
 
   bool get isTerminal => status == 'delivered' || status == 'cancelled';
   bool get hasDriver => driver != null;
   bool get canRate => status == 'delivered' && hasDriver;
-  bool get hasRestaurantCoords => restaurantLat != null && restaurantLng != null;
+  bool get hasPickupCoords => pickupLat != null && pickupLng != null;
   bool get hasCustomerCoords => customerLat != null && customerLng != null;
+}
+
+class OrderItem {
+  final String name;
+  final int quantity;
+  final double unitPrice;
+  final double totalPrice;
+  final String? description;
+
+  const OrderItem({
+    required this.name,
+    required this.quantity,
+    required this.unitPrice,
+    required this.totalPrice,
+    this.description,
+  });
+
+  factory OrderItem.fromJson(Map<String, dynamic> j) => OrderItem(
+        name: j['name'] ?? '',
+        quantity: asInt(j['quantity']) ?? 1,
+        unitPrice: asDouble(j['unit_price']) ?? 0,
+        totalPrice: asDouble(j['total_price']) ?? 0,
+        description: j['description'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'quantity': quantity,
+        'unit_price': unitPrice,
+        if (description != null && description!.isNotEmpty) 'description': description,
+      };
 }
 
 class OrderDriver {
@@ -165,10 +199,10 @@ class StatusLogEntry {
 class DeliveryOffer {
   final int id;
   final String orderNo;
-  final String restaurantName;
-  final double restaurantLat;
-  final double restaurantLng;
-  final String restaurantAddress;
+  final String pickupName;
+  final double pickupLat;
+  final double pickupLng;
+  final String pickupAddress;
   final double? deliveryFee;
   final double? distanceKm;
   final int timeoutSec;
@@ -176,10 +210,10 @@ class DeliveryOffer {
   const DeliveryOffer({
     required this.id,
     required this.orderNo,
-    required this.restaurantName,
-    required this.restaurantLat,
-    required this.restaurantLng,
-    required this.restaurantAddress,
+    required this.pickupName,
+    required this.pickupLat,
+    required this.pickupLng,
+    required this.pickupAddress,
     this.deliveryFee,
     this.distanceKm,
     required this.timeoutSec,
@@ -188,10 +222,10 @@ class DeliveryOffer {
   factory DeliveryOffer.fromJson(Map<String, dynamic> j) => DeliveryOffer(
         id: j['id'],
         orderNo: j['order_no'],
-        restaurantName: j['restaurant_name'],
-        restaurantLat: asDouble(j['restaurant_lat']) ?? 0,
-        restaurantLng: asDouble(j['restaurant_lng']) ?? 0,
-        restaurantAddress: j['restaurant_address'],
+        pickupName: j['pickup_name'] ?? '',
+        pickupLat: asDouble(j['pickup_lat']) ?? 0,
+        pickupLng: asDouble(j['pickup_lng']) ?? 0,
+        pickupAddress: j['pickup_address'] ?? '',
         deliveryFee: asDouble(j['delivery_fee']),
         distanceKm: asDouble(j['distance_km']),
         timeoutSec: asInt(j['timeout_sec']) ?? 30,

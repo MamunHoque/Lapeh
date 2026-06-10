@@ -16,7 +16,7 @@ class MapPlaceholder extends StatelessWidget {
     this.height = 240,
     this.showRoute = true,
     this.movingDotT,
-    this.pickupLabel = 'Restaurant',
+    this.pickupLabel = 'Pickup',
     this.dropLabel = 'Customer',
     this.radius,
   });

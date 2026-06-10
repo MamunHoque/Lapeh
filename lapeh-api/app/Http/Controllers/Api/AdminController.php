@@ -10,7 +10,7 @@ use App\Models\Fleet;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PricingSetting;
-use App\Models\Restaurant;
+use App\Models\Sender;
 use App\Models\SmsLog;
 use App\Models\SmsTemplate;
 use App\Models\User;
@@ -33,11 +33,11 @@ class AdminController extends Controller
             'online_drivers' => Driver::where('status', 'online')->count(),
             'on_delivery' => Driver::where('status', 'on_delivery')->count(),
             'open_complaints' => Complaint::where('status', 'open')->count(),
-            'total_restaurants' => Restaurant::where('status', 'active')->count(),
+            'total_senders' => Sender::where('status', 'active')->count(),
         ];
 
         $liveOrders = Order::whereNotIn('status', ['delivered', 'cancelled'])
-            ->with(['restaurant', 'driver.user'])
+            ->with(['sender.user', 'driver.user'])
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
@@ -49,10 +49,10 @@ class AdminController extends Controller
     // Orders
     public function orders(Request $request): JsonResponse
     {
-        $q = Order::with(['restaurant', 'driver.user'])->orderByDesc('created_at');
+        $q = Order::with(['sender.user', 'driver.user'])->orderByDesc('created_at');
 
         if ($request->status) $q->where('status', $request->status);
-        if ($request->restaurant_id) $q->where('restaurant_id', $request->restaurant_id);
+        if ($request->sender_id) $q->where('sender_id', $request->sender_id);
         if ($request->date_from) $q->where('created_at', '>=', $request->date_from);
         if ($request->date_to) $q->where('created_at', '<=', $request->date_to);
         if ($request->search) $q->where(function ($q) use ($request) {
@@ -67,7 +67,7 @@ class AdminController extends Controller
     public function liveOrders(): JsonResponse
     {
         $orders = Order::whereNotIn('status', ['delivered', 'cancelled'])
-            ->with(['restaurant', 'driver.user'])
+            ->with(['sender.user', 'driver.user'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn($o) => $this->orderRow($o));
@@ -75,23 +75,22 @@ class AdminController extends Controller
         return response()->json(['orders' => $orders]);
     }
 
-    // Restaurants CRUD
-    public function indexRestaurants(): JsonResponse
+    // Senders CRUD
+    public function indexSenders(): JsonResponse
     {
-        return response()->json(['restaurants' => Restaurant::with('zone')->paginate(30)]);
+        return response()->json(['senders' => Sender::with('user')->paginate(30)]);
     }
 
-    public function storeRestaurant(Request $request): JsonResponse
+    public function storeSender(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => 'required|string',
-            'name_ar' => 'nullable|string',
-            'phone' => 'required|string',
-            'area' => 'required|string',
-            'address' => 'required|string',
-            'lat' => 'required|numeric',
-            'lng' => 'required|numeric',
-            'zone_id' => 'nullable|exists:zones,id',
+            'type' => 'required|in:individual,business',
+            'business_name' => 'required_if:type,business|nullable|string',
+            'business_category' => 'nullable|string',
+            'contact_person_name' => 'nullable|string',
+            'default_pickup_address' => 'nullable|string',
+            'default_pickup_lat' => 'nullable|numeric',
+            'default_pickup_lng' => 'nullable|numeric',
             'user_name' => 'required|string',
             'user_phone' => 'required|string|unique:users,phone',
             'user_password' => 'required|string|min:6',
@@ -101,50 +100,50 @@ class AdminController extends Controller
             'name' => $data['user_name'],
             'phone' => $data['user_phone'],
             'password' => $data['user_password'],
-            'role' => 'restaurant',
+            'role' => 'sender',
+            'phone_verified_at' => now(),
         ]);
 
-        $restaurant = Restaurant::create([
+        $sender = Sender::create([
             'user_id' => $user->id,
-            'name' => $data['name'],
-            'name_ar' => $data['name_ar'] ?? null,
-            'phone' => $data['phone'],
-            'area' => $data['area'],
-            'address' => $data['address'],
-            'lat' => $data['lat'],
-            'lng' => $data['lng'],
-            'zone_id' => $data['zone_id'] ?? null,
+            'type' => $data['type'],
+            'business_name' => $data['business_name'] ?? null,
+            'business_category' => $data['business_category'] ?? null,
+            'contact_person_name' => $data['contact_person_name'] ?? null,
+            'default_pickup_address' => $data['default_pickup_address'] ?? null,
+            'default_pickup_lat' => $data['default_pickup_lat'] ?? null,
+            'default_pickup_lng' => $data['default_pickup_lng'] ?? null,
+            'status' => 'active',
         ]);
 
-        return response()->json(['restaurant' => $restaurant, 'user' => $user], 201);
+        return response()->json(['sender' => $sender, 'user' => $user], 201);
     }
 
-    public function showRestaurant(Restaurant $restaurant): JsonResponse
+    public function showSender(Sender $sender): JsonResponse
     {
-        return response()->json(['restaurant' => $restaurant->load(['user', 'zone'])]);
+        return response()->json(['sender' => $sender->load('user')]);
     }
 
-    public function updateRestaurant(Request $request, Restaurant $restaurant): JsonResponse
+    public function updateSender(Request $request, Sender $sender): JsonResponse
     {
         $data = $request->validate([
-            'name' => 'sometimes|string',
-            'name_ar' => 'nullable|string',
-            'phone' => 'sometimes|string',
-            'area' => 'sometimes|string',
-            'address' => 'sometimes|string',
-            'lat' => 'sometimes|numeric',
-            'lng' => 'sometimes|numeric',
-            'zone_id' => 'nullable|exists:zones,id',
-            'status' => 'sometimes|in:active,inactive',
+            'type' => 'sometimes|in:individual,business',
+            'business_name' => 'nullable|string',
+            'business_category' => 'nullable|string',
+            'contact_person_name' => 'nullable|string',
+            'default_pickup_address' => 'nullable|string',
+            'default_pickup_lat' => 'nullable|numeric',
+            'default_pickup_lng' => 'nullable|numeric',
+            'status' => 'sometimes|in:active,inactive,pending',
         ]);
 
-        $restaurant->update($data);
-        return response()->json(['restaurant' => $restaurant]);
+        $sender->update($data);
+        return response()->json(['sender' => $sender]);
     }
 
-    public function destroyRestaurant(Restaurant $restaurant): JsonResponse
+    public function destroySender(Sender $sender): JsonResponse
     {
-        $restaurant->delete();
+        $sender->delete();
         return response()->json(['message' => 'Deleted.']);
     }
 
@@ -266,7 +265,7 @@ class AdminController extends Controller
         $data = $request->validate([
             'name' => 'sometimes|string',
             'status' => 'sometimes|in:active,suspended',
-            'role' => 'sometimes|in:admin,restaurant,driver,fleet',
+            'role' => 'sometimes|in:admin,sender,driver,fleet',
         ]);
         $user->update($data);
         return response()->json(['user' => $user]);
@@ -281,7 +280,7 @@ class AdminController extends Controller
     // Payments
     public function payments(Request $request): JsonResponse
     {
-        $q = Payment::with('order.restaurant')->orderByDesc('created_at');
+        $q = Payment::with('order.sender.user')->orderByDesc('created_at');
         if ($request->status) $q->where('status', $request->status);
         return response()->json(['payments' => $q->paginate(30)]);
     }
@@ -289,7 +288,7 @@ class AdminController extends Controller
     // Complaints
     public function complaints(Request $request): JsonResponse
     {
-        $q = Complaint::with(['restaurant', 'order', 'attachments'])->orderByDesc('created_at');
+        $q = Complaint::with(['sender.user', 'order', 'attachments'])->orderByDesc('created_at');
         if ($request->status) $q->where('status', $request->status);
         return response()->json(['complaints' => $q->paginate(30)]);
     }
@@ -311,7 +310,7 @@ class AdminController extends Controller
     // Ratings
     public function ratings(): JsonResponse
     {
-        $ratings = DriverRating::with(['driver.user', 'restaurant', 'order'])
+        $ratings = DriverRating::with(['driver.user', 'sender.user', 'order'])
             ->orderByDesc('created_at')
             ->paginate(30);
 
@@ -354,10 +353,10 @@ class AdminController extends Controller
 
     protected function revenueReport(Request $request): JsonResponse
     {
-        $data = Order::selectRaw('restaurant_id, COUNT(*) as orders, SUM(delivery_fee) as revenue')
+        $data = Order::selectRaw('sender_id, COUNT(*) as orders, SUM(delivery_fee) as revenue')
             ->where('status', 'delivered')
-            ->with('restaurant:id,name')
-            ->groupBy('restaurant_id')
+            ->with('sender.user')
+            ->groupBy('sender_id')
             ->orderByDesc('revenue')
             ->get();
 
@@ -407,7 +406,7 @@ class AdminController extends Controller
         return [
             'id' => $order->id,
             'order_no' => $order->order_no,
-            'restaurant' => $order->restaurant?->name,
+            'sender' => $order->sender?->displayName(),
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
             'driver' => $order->driver?->user?->name,

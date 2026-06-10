@@ -290,6 +290,7 @@ class LabeledField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscure;
   final int maxLines;
+  final ValueChanged<String>? onChanged;
   const LabeledField({
     super.key,
     required this.label,
@@ -299,6 +300,7 @@ class LabeledField extends StatelessWidget {
     this.keyboardType,
     this.obscure = false,
     this.maxLines = 1,
+    this.onChanged,
   });
 
   @override
@@ -313,6 +315,7 @@ class LabeledField extends StatelessWidget {
           keyboardType: keyboardType,
           obscureText: obscure,
           maxLines: maxLines,
+          onChanged: onChanged,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,

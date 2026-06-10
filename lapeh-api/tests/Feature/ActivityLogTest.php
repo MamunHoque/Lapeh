@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ActivityLog;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,7 +37,7 @@ class ActivityLogTest extends TestCase
 
     public function test_login_is_logged(): void
     {
-        $user = User::factory()->create(['role' => 'restaurant', 'password' => bcrypt('secret123')]);
+        $user = User::factory()->create(['role' => 'sender', 'password' => bcrypt('secret123')]);
 
         $this->postJson('/api/auth/login', ['phone' => $user->phone, 'password' => 'secret123'])
             ->assertOk();
@@ -67,17 +67,19 @@ class ActivityLogTest extends TestCase
 
     public function test_order_creation_records_activity(): void
     {
-        $user = User::factory()->create(['role' => 'restaurant']);
-        Restaurant::create([
-            'user_id' => $user->id, 'name' => 'Kitchen', 'phone' => '+97140000000',
-            'area' => 'Jumeirah', 'address' => '1 Rd', 'lat' => 25.2, 'lng' => 55.27,
+        $user = User::factory()->create(['role' => 'sender', 'phone_verified_at' => now()]);
+        Sender::create([
+            'user_id' => $user->id, 'type' => 'individual',
+            'default_pickup_address' => '1 Rd', 'default_pickup_lat' => 25.2, 'default_pickup_lng' => 55.27,
+            'status' => 'active',
         ]);
 
-        $this->actingAs($user)->postJson('/api/restaurant/orders', [
-            'customer_name' => 'Sara', 'customer_phone' => '+971500000000', 'order_value' => 80,
+        $this->actingAs($user)->postJson('/api/sender/orders', [
+            'customer_name' => 'Sara', 'customer_phone' => '+971500000000',
+            'items' => [['name' => 'Box', 'quantity' => 2, 'unit_price' => 40]],
         ])->assertCreated();
 
-        $this->assertDatabaseHas('activity_logs', ['action' => 'order.created', 'actor_role' => 'restaurant']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'order.created', 'actor_role' => 'sender']);
         $this->assertSame(1, Order::count());
     }
 }

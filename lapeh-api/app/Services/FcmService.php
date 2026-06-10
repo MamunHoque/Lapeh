@@ -97,7 +97,7 @@ class FcmService
                 'offer' => json_encode($offerPayload),
             ],
             'New delivery request',
-            "AED {$offerPayload['delivery_fee']} · {$offerPayload['restaurant_name']}",
+            "AED {$offerPayload['delivery_fee']} · {$offerPayload['pickup_name']}",
         );
     }
 

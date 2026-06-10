@@ -23,12 +23,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.locale')->group(functi
         Route::get('live', [AdminWebController::class, 'live'])->name('live');
         Route::get('orders', [AdminWebController::class, 'orders'])->name('orders');
         Route::get('orders/{order}', [AdminWebController::class, 'orderShow'])->name('orders.show');
-        Route::get('restaurants', [AdminWebController::class, 'restaurants'])->name('restaurants');
-        Route::get('restaurants/create', [AdminWebController::class, 'restaurantCreate'])->name('restaurants.create');
-        Route::post('restaurants', [AdminWebController::class, 'restaurantStore'])->name('restaurants.store');
-        Route::get('restaurants/{restaurant}/edit', [AdminWebController::class, 'restaurantEdit'])->name('restaurants.edit');
-        Route::put('restaurants/{restaurant}', [AdminWebController::class, 'restaurantUpdate'])->name('restaurants.update');
-        Route::delete('restaurants/{restaurant}', [AdminWebController::class, 'restaurantDestroy'])->name('restaurants.destroy');
+        Route::get('senders', [AdminWebController::class, 'senders'])->name('senders');
+        Route::get('senders/create', [AdminWebController::class, 'senderCreate'])->name('senders.create');
+        Route::post('senders', [AdminWebController::class, 'senderStore'])->name('senders.store');
+        Route::get('senders/{sender}/edit', [AdminWebController::class, 'senderEdit'])->name('senders.edit');
+        Route::put('senders/{sender}', [AdminWebController::class, 'senderUpdate'])->name('senders.update');
+        Route::delete('senders/{sender}', [AdminWebController::class, 'senderDestroy'])->name('senders.destroy');
         Route::get('drivers', [AdminWebController::class, 'drivers'])->name('drivers');
         Route::get('drivers/create', [AdminWebController::class, 'driverCreate'])->name('drivers.create');
         Route::post('drivers', [AdminWebController::class, 'driverStore'])->name('drivers.store');

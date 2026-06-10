@@ -11,12 +11,18 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->string('order_no')->unique();
-            $table->foreignId('restaurant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('sender_id')->constrained()->cascadeOnDelete();
             $table->foreignId('driver_id')->nullable()->constrained()->nullOnDelete();
+
+            // Pickup (from the sender) — captured per request.
+            $table->string('pickup_address')->nullable();
+            $table->decimal('pickup_lat', 10, 7)->nullable();
+            $table->decimal('pickup_lng', 10, 7)->nullable();
+
+            // Receiver / drop-off.
             $table->string('customer_name');
             $table->string('customer_phone');
-            $table->decimal('order_value', 10, 2);
-            $table->unsignedInteger('prep_time_min')->nullable();
+            $table->decimal('order_value', 10, 2)->default(0); // total item value
             $table->text('notes')->nullable();
             $table->decimal('customer_lat', 10, 7)->nullable();
             $table->decimal('customer_lng', 10, 7)->nullable();
@@ -32,7 +38,7 @@ return new class extends Migration
                 'paid',
                 'searching_driver',
                 'driver_assigned',
-                'arrived_at_restaurant',
+                'arrived_at_pickup',
                 'picked_up',
                 'on_the_way',
                 'delivered',

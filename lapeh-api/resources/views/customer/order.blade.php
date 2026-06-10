@@ -38,6 +38,31 @@
 
     <div style="max-width:480px;margin:0 auto;padding:20px 16px;">
 
+        {{-- Package summary: shown up-front so the receiver knows what's coming --}}
+        @if($order->items->count())
+        <div class="card" style="margin-bottom:20px;">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+                <div class="sora" style="font-size:14px;font-weight:700;">{{ __('customer.package_items') }}</div>
+                <span class="badge badge-pink">{{ $order->items->count() }}</span>
+            </div>
+            <div style="padding:8px 20px 14px;">
+                @foreach($order->items as $item)
+                <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);">
+                    <div>
+                        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">{{ $item->name }} <span style="color:var(--slate);font-weight:500;">×{{ $item->quantity }}</span></div>
+                        @if($item->description)<div style="font-size:12px;color:var(--slate);">{{ $item->description }}</div>@endif
+                    </div>
+                    <div class="sora" style="font-size:13px;font-weight:600;white-space:nowrap;">AED {{ number_format($item->total_price, 2) }}</div>
+                </div>
+                @endforeach
+                <div style="display:flex;justify-content:space-between;padding-top:12px;font-size:14px;font-weight:700;">
+                    <span>{{ __('customer.total_value') }}</span>
+                    <span style="color:var(--pink);">AED {{ number_format($order->order_value, 2) }}</span>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- STEP 1: Confirm Location --}}
         @if(in_array($order->status, ['waiting_for_location', 'location_confirmed']))
         <div class="card" style="margin-bottom:20px;" x-show="step === 'location'">
@@ -165,7 +190,7 @@
         @endif
 
         {{-- STEP 3+: Track --}}
-        @if(in_array($order->status, ['paid', 'searching_driver', 'driver_assigned', 'arrived_at_restaurant', 'picked_up', 'on_the_way', 'delivered', 'cancelled']))
+        @if(in_array($order->status, ['paid', 'searching_driver', 'driver_assigned', 'arrived_at_pickup', 'picked_up', 'on_the_way', 'delivered', 'cancelled']))
         <div class="card" style="margin-bottom:20px;">
             <div style="padding:20px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -174,7 +199,7 @@
                         $statusBadge = match($order->status) {
                             'searching_driver' => ['badge-pink', __('customer.status_searching')],
                             'driver_assigned' => ['badge-blue', __('customer.status_assigned')],
-                            'arrived_at_restaurant' => ['badge-blue', __('customer.status_at_restaurant')],
+                            'arrived_at_pickup' => ['badge-blue', __('customer.status_at_pickup')],
                             'picked_up' => ['badge-blue', __('customer.status_picked_up')],
                             'on_the_way' => ['badge-blue', __('customer.status_on_the_way')],
                             'delivered' => ['badge-green', __('customer.status_delivered')],
@@ -185,7 +210,7 @@
                     <span class="badge {{ $statusBadge[0] }}">{{ $statusBadge[1] }}</span>
                 </div>
 
-                @if($order->driver && in_array($order->status, ['driver_assigned','arrived_at_restaurant','picked_up','on_the_way']))
+                @if($order->driver && in_array($order->status, ['driver_assigned','arrived_at_pickup','picked_up','on_the_way']))
                 <div style="background:var(--bg);border-radius:14px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">
                     <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--pink),var(--pink-deep));display:grid;place-items:center;font-family:'Sora';font-weight:700;color:#fff;font-size:14px;flex:none;">
                         {{ strtoupper(substr($order->driver->user->name ?? 'D', 0, 2)) }}
@@ -211,8 +236,8 @@
                 {{-- Timeline --}}
                 <div>
                     @php
-                        $statuses = ['paid','searching_driver','driver_assigned','arrived_at_restaurant','picked_up','on_the_way','delivered'];
-                        $statusLabels = [__('customer.tl_paid'),__('customer.tl_searching'),__('customer.tl_assigned'),__('customer.tl_at_restaurant'),__('customer.tl_picked_up'),__('customer.tl_on_the_way'),__('customer.tl_delivered')];
+                        $statuses = ['paid','searching_driver','driver_assigned','arrived_at_pickup','picked_up','on_the_way','delivered'];
+                        $statusLabels = [__('customer.tl_paid'),__('customer.tl_searching'),__('customer.tl_assigned'),__('customer.tl_at_pickup'),__('customer.tl_picked_up'),__('customer.tl_on_the_way'),__('customer.tl_delivered')];
                         $currentIdx = array_search($order->status, $statuses);
                     @endphp
                     @foreach($statuses as $i => $s)
@@ -234,7 +259,7 @@
         {{-- Order summary --}}
         <div class="card">
             <div style="padding:16px 20px;border-bottom:1px solid var(--line);">
-                <div class="sora" style="font-size:13px;font-weight:700;color:var(--slate);">{{ __('customer.from_restaurant', ['name' => ($rtl ?? false) ? ($order->restaurant->name_ar ?? $order->restaurant->name) : $order->restaurant->name]) }}</div>
+                <div class="sora" style="font-size:13px;font-weight:700;color:var(--slate);">{{ __('customer.from_sender', ['name' => $order->sender?->displayName()]) }}</div>
             </div>
             <div style="padding:16px 20px;">
                 <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:8px;">
@@ -279,7 +304,7 @@ function orderApp() {
 
         init() {
             window._orderApp = this;
-            @if(in_array($order->status, ['paid','searching_driver','driver_assigned','arrived_at_restaurant','picked_up','on_the_way']))
+            @if(in_array($order->status, ['paid','searching_driver','driver_assigned','arrived_at_pickup','picked_up','on_the_way']))
             // Poll for status updates every 15s
             setInterval(() => this.pollStatus(), 15000);
             @endif
@@ -303,7 +328,7 @@ function orderApp() {
         initMap() {
             const el = document.getElementById('pickmap');
             if (!el || !window.google) return;
-            const fallback = { lat: {{ $order->restaurant->lat ?? 25.2048 }}, lng: {{ $order->restaurant->lng ?? 55.2708 }} };
+            const fallback = { lat: {{ $order->pickup_lat ?? 25.2048 }}, lng: {{ $order->pickup_lng ?? 55.2708 }} };
             this._geocoder = new google.maps.Geocoder();
             this._map = new google.maps.Map(el, {
                 center: fallback, zoom: 14, disableDefaultUI: true, gestureHandling: 'greedy',

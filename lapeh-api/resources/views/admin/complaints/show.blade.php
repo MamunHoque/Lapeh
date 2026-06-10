@@ -6,7 +6,7 @@
     <div class="card" style="margin-bottom:18px;">
         <div class="card-head">
             <div>
-                <div style="font-size:14px;font-weight:600;">{{ $complaint->restaurant->name }}</div>
+                <div style="font-size:14px;font-weight:600;">{{ $complaint->sender?->displayName() }}</div>
                 <span class="badge badge-amber" style="margin-top:4px;">{{ config('lapeh.complaint_types.'.$complaint->type.'.'.app()->getLocale()) ?? ucfirst(str_replace('_',' ',$complaint->type)) }}</span>
             </div>
             <span class="badge {{ match($complaint->status) { 'open' => 'badge-red', 'under_review' => 'badge-amber', 'resolved' => 'badge-green' } }}">{{ __('admin.'.$complaint->status) }}</span>

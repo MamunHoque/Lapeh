@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import '../api_client.dart';
 import 'driver_service.dart';
 
 enum LocationOutcome { granted, denied, deniedForever, serviceDisabled }
@@ -34,6 +35,19 @@ class LocationService {
   }
 
   Future<bool> openSettings() => Geolocator.openAppSettings();
+
+  /// Reverse-geocode via our backend (the Google REST API has no CORS headers,
+  /// so a direct call fails on Flutter web). Returns the formatted address, or
+  /// null on failure (caller keeps the coordinate fallback already shown).
+  Future<String?> reverseGeocode(double lat, double lng) async {
+    try {
+      final res = await ApiClient().dio.get('/geocode/reverse',
+          queryParameters: {'lat': lat, 'lng': lng});
+      return res.data['address'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<Position?> getCurrentPosition() async {
     final ok = await requestPermission();

@@ -34,7 +34,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final displayName = user?.name ?? '—';
     final roleLabel = user == null
         ? ''
-        : (user.isDriver ? tr('driver') : tr('restaurant'));
+        : (user.isDriver ? tr('driver') : tr('sender'));
     final displaySub = user != null ? '$roleLabel · ${user.phone}' : '';
 
     return ListView(

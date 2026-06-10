@@ -1,11 +1,11 @@
 import '../api_client.dart';
 import '../models/order_model.dart';
 
-class RestaurantService {
+class SenderService {
   final _api = ApiClient();
 
   Future<({DashboardStats stats, List<OrderModel> activeDeliveries})> dashboard() async {
-    final res = await _api.dio.get('/restaurant/dashboard');
+    final res = await _api.dio.get('/sender/dashboard');
     return (
       stats: DashboardStats.fromJson(res.data['stats']),
       activeDeliveries: (res.data['active_deliveries'] as List)
@@ -17,15 +17,19 @@ class RestaurantService {
   Future<({OrderModel order, String customerLink})> createOrder({
     required String customerName,
     required String customerPhone,
-    required double orderValue,
-    int? prepTimeMin,
+    required List<OrderItem> items,
+    String? pickupAddress,
+    double? pickupLat,
+    double? pickupLng,
     String? notes,
   }) async {
-    final res = await _api.dio.post('/restaurant/orders', data: {
+    final res = await _api.dio.post('/sender/orders', data: {
       'customer_name': customerName,
       'customer_phone': customerPhone,
-      'order_value': orderValue,
-      if (prepTimeMin != null) 'prep_time_min': prepTimeMin,
+      'items': items.map((i) => i.toJson()).toList(),
+      if (pickupAddress != null) 'pickup_address': pickupAddress,
+      if (pickupLat != null) 'pickup_lat': pickupLat,
+      if (pickupLng != null) 'pickup_lng': pickupLng,
       if (notes != null) 'notes': notes,
     });
     return (
@@ -34,8 +38,26 @@ class RestaurantService {
     );
   }
 
+  Future<void> updateProfile({
+    String? defaultPickupAddress,
+    double? defaultPickupLat,
+    double? defaultPickupLng,
+    String? businessName,
+    String? businessCategory,
+    String? contactPersonName,
+  }) async {
+    await _api.dio.patch('/sender/profile', data: {
+      if (defaultPickupAddress != null) 'default_pickup_address': defaultPickupAddress,
+      if (defaultPickupLat != null) 'default_pickup_lat': defaultPickupLat,
+      if (defaultPickupLng != null) 'default_pickup_lng': defaultPickupLng,
+      if (businessName != null) 'business_name': businessName,
+      if (businessCategory != null) 'business_category': businessCategory,
+      if (contactPersonName != null) 'contact_person_name': contactPersonName,
+    });
+  }
+
   Future<List<OrderModel>> listOrders({String? status}) async {
-    final res = await _api.dio.get('/restaurant/orders', queryParameters: {
+    final res = await _api.dio.get('/sender/orders', queryParameters: {
       if (status != null) 'status': status,
     });
     final data = res.data['orders'];
@@ -44,16 +66,16 @@ class RestaurantService {
   }
 
   Future<OrderModel> getOrder(int id) async {
-    final res = await _api.dio.get('/restaurant/orders/$id');
+    final res = await _api.dio.get('/sender/orders/$id');
     return OrderModel.fromJson(res.data['order']);
   }
 
   Future<void> resendLink(int orderId) async {
-    await _api.dio.post('/restaurant/orders/$orderId/resend-link');
+    await _api.dio.post('/sender/orders/$orderId/resend-link');
   }
 
   Future<void> cancelOrder(int orderId, {String? reason}) async {
-    await _api.dio.post('/restaurant/orders/$orderId/cancel', data: {
+    await _api.dio.post('/sender/orders/$orderId/cancel', data: {
       if (reason != null) 'reason': reason,
     });
   }
@@ -63,7 +85,7 @@ class RestaurantService {
     List<String>? tags,
     String? comment,
   }) async {
-    await _api.dio.post('/restaurant/orders/$orderId/rate-driver', data: {
+    await _api.dio.post('/sender/orders/$orderId/rate-driver', data: {
       'rating': rating,
       if (tags != null) 'tags': tags,
       if (comment != null) 'comment': comment,
@@ -71,14 +93,14 @@ class RestaurantService {
   }
 
   Future<List<OrderModel>> history() async {
-    final res = await _api.dio.get('/restaurant/history');
+    final res = await _api.dio.get('/sender/history');
     final data = res.data['orders'];
     final items = data is Map ? data['data'] as List : data as List;
     return items.map((e) => OrderModel.fromJson(e)).toList();
   }
 
   Future<ReportData> reports() async {
-    final res = await _api.dio.get('/restaurant/reports');
+    final res = await _api.dio.get('/sender/reports');
     return ReportData.fromJson(Map<String, dynamic>.from(res.data));
   }
 }

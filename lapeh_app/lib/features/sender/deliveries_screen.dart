@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
-import '../../core/providers/restaurant_provider.dart';
+import '../../core/providers/sender_provider.dart';
 import '../../shared/widgets.dart';
 import 'tracking_screen.dart';
 

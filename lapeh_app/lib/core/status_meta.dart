@@ -15,7 +15,7 @@ const Map<String, String> _statusTones = {
   'paid': 'green',
   'searching_driver': 'pink',
   'driver_assigned': 'blue',
-  'arrived_at_restaurant': 'indigo',
+  'arrived_at_pickup': 'indigo',
   'picked_up': 'indigo',
   'on_the_way': 'blue',
   'delivered': 'green',
@@ -30,7 +30,7 @@ StatusMeta statusMeta(String status) {
 }
 
 /// Statuses where a driver is actively working the order.
-const driverActiveStatuses = ['driver_assigned', 'arrived_at_restaurant', 'picked_up', 'on_the_way'];
+const driverActiveStatuses = ['driver_assigned', 'arrived_at_pickup', 'picked_up', 'on_the_way'];
 
 /// Statuses before the customer has paid (order still pending customer action).
 const customerPendingStatuses = ['created', 'waiting_for_location', 'location_confirmed', 'waiting_for_payment'];

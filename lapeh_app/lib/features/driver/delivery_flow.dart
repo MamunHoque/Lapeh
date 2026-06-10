@@ -22,7 +22,7 @@ class DeliveryFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
-  // 0 to-restaurant · 1 pickup · 2 to-customer · 3 otp · 4 delivered
+  // 0 to-pickup · 1 collect · 2 to-customer · 3 otp · 4 delivered
   int step = 0;
   bool _loading = false;
 
@@ -32,7 +32,7 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
     // Resume mid-delivery after app restart — backend rejects out-of-order
     // transitions, so the step must match the order's actual status.
     step = switch (widget.order.status) {
-      'arrived_at_restaurant' => 1,
+      'arrived_at_pickup' => 1,
       'picked_up' || 'on_the_way' => 2,
       'delivered' => 4,
       _ => 0,
@@ -84,16 +84,16 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
     switch (step) {
       case 0:
         return _NavScreen(
-          title: tr('to_restaurant'),
-          destination: o.hasRestaurantCoords ? LatLng(o.restaurantLat!, o.restaurantLng!) : null,
-          destinationLabel: o.restaurantName ?? tr('restaurant_pickup'),
-          banner: ('${tr('head_to')} ${o.restaurantName ?? tr('restaurant_pickup')}', ''),
+          title: tr('to_pickup'),
+          destination: o.hasPickupCoords ? LatLng(o.pickupLat!, o.pickupLng!) : null,
+          destinationLabel: o.pickupName ?? tr('pickup_label'),
+          banner: ('${tr('head_to')} ${o.pickupName ?? tr('pickup_label')}', ''),
           contactIcon: Icons.storefront,
           contactIsPickup: true,
-          contactTitle: o.restaurantName ?? tr('restaurant_pickup'),
+          contactTitle: o.pickupName ?? tr('pickup_label'),
           contactSub: '${tr('order_prefix')} ${o.orderNo} · AED ${o.orderValue.toStringAsFixed(0)}',
-          cta: tr('arrived_restaurant'),
-          onCta: () => _advance('arrived_at_restaurant'),
+          cta: tr('arrived_pickup'),
+          onCta: () => _advance('arrived_at_pickup'),
         );
       case 1:
         return _PickupScreen(order: o, onNext: _pickupAndGo);
@@ -330,14 +330,14 @@ class _PickupScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('pickup'))),
       body: Column(children: [
-        if (order.hasRestaurantCoords)
+        if (order.hasPickupCoords)
           SizedBox(
             height: 240,
             child: GoogleMap(
-              initialCameraPosition: CameraPosition(target: LatLng(order.restaurantLat!, order.restaurantLng!), zoom: 16),
+              initialCameraPosition: CameraPosition(target: LatLng(order.pickupLat!, order.pickupLng!), zoom: 16),
               markers: {
-                Marker(markerId: const MarkerId('rest'), position: LatLng(order.restaurantLat!, order.restaurantLng!),
-                    infoWindow: InfoWindow(title: order.restaurantName ?? tr('restaurant_pickup'))),
+                Marker(markerId: const MarkerId('rest'), position: LatLng(order.pickupLat!, order.pickupLng!),
+                    infoWindow: InfoWindow(title: order.pickupName ?? tr('pickup_label'))),
               },
               zoomControlsEnabled: false,
               myLocationEnabled: true,
@@ -370,7 +370,7 @@ class _PickupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 StatusTimeline(steps: [
-                  StatusStep(tr('arrived_restaurant'), 'done'),
+                  StatusStep(tr('arrived_pickup'), 'done'),
                   StatusStep(tr('track_picked_up'), 'active'),
                   StatusStep(tr('track_on_the_way'), 'todo'),
                 ]),

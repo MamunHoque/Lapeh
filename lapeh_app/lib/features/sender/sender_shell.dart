@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
+import '../../core/providers/sender_provider.dart';
 import '../shared/profile_screen.dart';
 import 'dashboard_screen.dart';
 import 'deliveries_screen.dart';
 import 'reports_screen.dart';
 
-class RestaurantShell extends StatefulWidget {
-  const RestaurantShell({super.key});
-  @override
-  State<RestaurantShell> createState() => _RestaurantShellState();
-}
-
-class _RestaurantShellState extends State<RestaurantShell> {
-  int index = 0;
+class SenderShell extends ConsumerWidget {
+  const SenderShell({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = ref.watch(senderTabProvider);
     const pages = [
       DashboardScreen(),
       DeliveriesScreen(),
@@ -33,7 +30,7 @@ class _RestaurantShellState extends State<RestaurantShell> {
         child: NavigationBar(
           height: 64,
           selectedIndex: index,
-          onDestinationSelected: (i) => setState(() => index = i),
+          onDestinationSelected: (i) => ref.read(senderTabProvider.notifier).state = i,
           destinations: [
             NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home, color: AppColors.pink), label: tr('home')),
             NavigationDestination(icon: const Icon(Icons.list_alt_outlined), selectedIcon: const Icon(Icons.list_alt, color: AppColors.pink), label: tr('deliveries')),

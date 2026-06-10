@@ -6,7 +6,7 @@
         <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('admin.search_placeholder') }}" class="form-input" style="width:220px;">
         <select name="role" class="form-input form-select" style="width:150px;">
             <option value="">{{ __('admin.all_roles') }}</option>
-            @foreach(['admin','restaurant','driver','fleet'] as $r)
+            @foreach(['admin','sender','driver','fleet'] as $r)
                 <option value="{{ $r }}" @selected(request('role')===$r)>{{ __('admin.role_'.$r) }}</option>
             @endforeach
         </select>

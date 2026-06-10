@@ -17,13 +17,13 @@ class CustomerController extends Controller
     public function show(Request $request, string $token)
     {
         $order = Order::where('location_token', $token)
-            ->with(['restaurant', 'driver', 'statusLogs'])
+            ->with(['sender.user', 'driver', 'statusLogs', 'items'])
             ->firstOrFail();
 
-        // Locale: ?lang override → session → order's stored locale → English.
+        // Locale: ?lang override → session → English.
         $locale = $request->query('lang');
         if (! in_array($locale, ['en', 'ar'], true)) {
-            $locale = session('customer_locale', $order->customer_locale ?? 'en');
+            $locale = session('customer_locale', 'en');
         }
         session(['customer_locale' => $locale]);
         app()->setLocale($locale);
@@ -49,12 +49,14 @@ class CustomerController extends Controller
             'address' => 'nullable|string|max:500',
         ]);
 
-        $restaurant = $order->restaurant;
         $map = app(MapService::class);
         $calculator = app(FeeCalculator::class);
 
-        $distanceKm = $map->distanceKm($restaurant->lat, $restaurant->lng, $data['lat'], $data['lng']);
-        $feeData = $calculator->calculate($distanceKm, $restaurant->zone_id);
+        // Distance from the order's pickup location to the receiver.
+        $pickupLat = $order->pickup_lat ?? $data['lat'];
+        $pickupLng = $order->pickup_lng ?? $data['lng'];
+        $distanceKm = $map->distanceKm((float) $pickupLat, (float) $pickupLng, $data['lat'], $data['lng']);
+        $feeData = $calculator->calculate($distanceKm);
         $address = $data['address'] ?? $map->reverseGeocode($data['lat'], $data['lng']);
 
         $order->update([
@@ -96,7 +98,7 @@ class CustomerController extends Controller
     public function payIntent(Request $request, string $token)
     {
         $order = Order::where('location_token', $token)
-            ->with('restaurant')
+            ->with('sender')
             ->firstOrFail();
 
         abort_unless($order->status === 'location_confirmed', 422, 'Confirm location first.');

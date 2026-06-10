@@ -121,7 +121,7 @@ class _IncomingRequestSheetState extends ConsumerState<_IncomingRequestSheet> wi
             Padding(padding: const EdgeInsets.only(bottom: 4), child: Text(tr('aed_earnings'), style: const TextStyle(fontSize: 13, color: AppColors.slate))),
           ]),
           const SizedBox(height: 12),
-          _leg(Icons.storefront, AppColors.ink, Colors.white, offer.restaurantName,
+          _leg(Icons.storefront, AppColors.ink, Colors.white, offer.pickupName,
               '${tr('pickup_short')} · ${offer.distanceKm != null ? "${offer.distanceKm!.toStringAsFixed(1)} ${tr('km_away')}" : "–"}'),
           Container(margin: const EdgeInsets.only(left: 16), height: 18, width: 0,
               decoration: const BoxDecoration(border: Border(left: BorderSide(color: AppColors.line, width: 2)))),

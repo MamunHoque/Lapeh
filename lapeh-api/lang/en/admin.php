@@ -14,7 +14,7 @@ return [
     'dashboard' => 'Dashboard',
     'live_deliveries' => 'Live Deliveries',
     'orders' => 'Orders',
-    'restaurants' => 'Restaurants',
+    'senders' => 'Senders',
     'drivers' => 'Drivers',
     'zones' => 'Zones',
     'payments' => 'Payments',
@@ -63,7 +63,7 @@ return [
     'total' => 'Total',
     'order' => 'Order',
     'order_no' => 'Order #',
-    'restaurant' => 'Restaurant',
+    'sender' => 'Sender',
     'customer' => 'Customer',
     'driver' => 'Driver',
     'fee' => 'Fee',
@@ -112,7 +112,7 @@ return [
     'st_paid' => 'Paid',
     'st_searching_driver' => 'Searching Driver',
     'st_driver_assigned' => 'Driver Assigned',
-    'st_arrived_at_restaurant' => 'At Restaurant',
+    'st_arrived_at_pickup' => 'At Pickup',
     'st_picked_up' => 'Picked Up',
     'st_on_the_way' => 'On the Way',
     'st_delivered' => 'Delivered',
@@ -120,7 +120,7 @@ return [
 
     // Roles
     'role_admin' => 'Admin',
-    'role_restaurant' => 'Restaurant',
+    'role_sender' => 'Sender',
     'role_driver' => 'Driver',
     'role_fleet' => 'Fleet',
 
@@ -135,7 +135,7 @@ return [
     'recent_orders' => 'Recent Orders',
     'no_active_deliveries' => 'No active deliveries',
     'quick_actions' => 'Quick Actions',
-    'add_restaurant' => 'Add Restaurant',
+    'add_sender' => 'Add Sender',
     'add_driver' => 'Add Driver',
     'edit_pricing' => 'Edit Pricing',
     'open_complaints' => 'Open Complaints',
@@ -153,7 +153,7 @@ return [
 
     // Orders
     'search_order_placeholder' => 'Search order / customer...',
-    'all_restaurants' => 'All restaurants',
+    'all_senders' => 'All senders',
     'no_orders_found' => 'No orders found',
     'back_to_orders' => '← Orders',
     'amounts' => 'Amounts',
@@ -167,10 +167,10 @@ return [
     'driver_rating' => 'Driver Rating',
 
     // Restaurants
-    'search_restaurant_placeholder' => 'Search restaurant...',
-    'no_restaurants_found' => 'No restaurants found',
-    'confirm_delete_restaurant' => 'Delete this restaurant?',
-    'new_restaurant' => 'New Restaurant',
+    'search_sender_placeholder' => 'Search sender...',
+    'no_senders_found' => 'No senders found',
+    'confirm_delete_sender' => 'Delete this sender?',
+    'new_sender' => 'New Sender',
     'name_en' => 'Name (EN)',
     'name_ar' => 'Name (AR)',
     'no_zone' => 'No zone',
@@ -178,8 +178,8 @@ return [
     'contact_name' => 'Contact Name',
     'phone_login' => 'Phone (Login)',
     'min_6_chars' => 'Min 6 characters',
-    'create_restaurant' => 'Create Restaurant',
-    'back_to_restaurants' => '← Restaurants',
+    'create_sender' => 'Create Sender',
+    'back_to_senders' => '← Senders',
     'edit_prefix' => 'Edit:',
 
     // Drivers
@@ -287,4 +287,18 @@ return [
     'queue_driver' => 'Queue Driver',
     'broadcast' => 'Broadcast',
     'manage_pricing' => 'Manage Pricing →',
+    'sender_type' => 'Sender type',
+    'individual' => 'Individual',
+    'business' => 'Business',
+    'business_details' => 'Business details',
+    'business_name' => 'Business name',
+    'business_category' => 'Category',
+    'contact_person' => 'Contact person',
+    'default_pickup' => 'Default pickup',
+    'pickup' => 'Pickup',
+    'package_items' => 'Package items',
+    'item' => 'Item',
+    'qty' => 'Qty',
+    'unit_price' => 'Unit price',
+    'total_item_value' => 'Total item value',
 ];

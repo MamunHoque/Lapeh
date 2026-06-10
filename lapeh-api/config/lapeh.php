@@ -6,7 +6,7 @@ return [
     |--------------------------------------------------------------------------
     | Predefined driver rating tags
     |--------------------------------------------------------------------------
-    | Canonical list used to validate restaurant ratings and to render
+    | Canonical list used to validate driver ratings and to render
     | localized chips in the apps. Keys are stable; labels are display-only.
     */
     'rating_tags' => [
@@ -32,6 +32,21 @@ return [
         'driver_behavior' => ['en' => 'Driver behavior',   'ar' => 'سلوك السائق'],
         'payment'         => ['en' => 'Payment issue',     'ar' => 'مشكلة في الدفع'],
         'other'           => ['en' => 'Other',             'ar' => 'أخرى'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phone OTP verification
+    |--------------------------------------------------------------------------
+    | No SMS provider yet: the OTP is logged and (in non-production) returned
+    | in the API response. MASTER_OTP is accepted only in non-production envs.
+    */
+    'otp' => [
+        'length' => 6,
+        'ttl_minutes' => 10,
+        'master' => env('MASTER_OTP', '123456'),
+        // Envs where the OTP is exposed in responses and the master OTP works.
+        'dev_envs' => ['local', 'testing', 'development'],
     ],
 
 ];

@@ -14,12 +14,12 @@
 </div>
 <div class="card">
     <table class="table">
-        <thead><tr><th>{{ __('admin.order') }}</th><th>{{ __('admin.restaurant') }}</th><th>{{ __('admin.gateway') }}</th><th>{{ __('admin.amount') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.date') }}</th></tr></thead>
+        <thead><tr><th>{{ __('admin.order') }}</th><th>{{ __('admin.sender') }}</th><th>{{ __('admin.gateway') }}</th><th>{{ __('admin.amount') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.date') }}</th></tr></thead>
         <tbody>
             @forelse($payments as $payment)
             <tr>
                 <td><span class="mono">{{ $payment->order?->order_no }}</span></td>
-                <td style="font-size:12.5px;">{{ $payment->order?->restaurant?->name }}</td>
+                <td style="font-size:12.5px;">{{ $payment->order?->sender?->displayName() }}</td>
                 <td style="font-size:12.5px;">{{ ucfirst($payment->gateway) }}</td>
                 <td><span class="sora" style="font-weight:600;">AED {{ number_format($payment->amount, 2) }}</span></td>
                 <td><span class="badge {{ $payment->status === 'paid' ? 'badge-green' : ($payment->status === 'failed' ? 'badge-red' : 'badge-amber') }}">{{ __('admin.'.$payment->status) }}</span></td>

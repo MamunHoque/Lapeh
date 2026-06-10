@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Models\Sender;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,21 +14,21 @@ class LocaleTest extends TestCase
 
     private function makeOrder(): Order
     {
-        $user = User::factory()->create(['role' => 'restaurant']);
-        $restaurant = Restaurant::create([
+        $user = User::factory()->create(['role' => 'sender']);
+        $sender = Sender::create([
             'user_id' => $user->id,
-            'name' => 'Test Kitchen',
-            'name_ar' => 'مطبخ الاختبار',
-            'phone' => '+97140000000',
-            'area' => 'Jumeirah',
-            'address' => '1 Beach Road',
-            'lat' => 25.2048,
-            'lng' => 55.2708,
+            'type' => 'individual',
+            'default_pickup_address' => '1 Beach Road',
+            'default_pickup_lat' => 25.2048,
+            'default_pickup_lng' => 55.2708,
+            'status' => 'active',
         ]);
 
         return Order::create([
             'order_no' => 'LP-1001',
-            'restaurant_id' => $restaurant->id,
+            'sender_id' => $sender->id,
+            'pickup_lat' => 25.2048,
+            'pickup_lng' => 55.2708,
             'customer_name' => 'Sara',
             'customer_phone' => '+971500000000',
             'order_value' => 100,

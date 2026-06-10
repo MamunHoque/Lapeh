@@ -6,7 +6,7 @@ import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/api_client.dart';
 import '../../core/models/order_model.dart';
-import '../../core/providers/restaurant_provider.dart';
+import '../../core/providers/sender_provider.dart';
 import '../../shared/widgets.dart';
 import '../../shared/map_placeholder.dart';
 
@@ -26,7 +26,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   Future<void> _resend(int orderId) async {
     setState(() => _resending = true);
     try {
-      await ref.read(restaurantServiceProvider).resendLink(orderId);
+      await ref.read(senderServiceProvider).resendLink(orderId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('link_resent'))));
       }
@@ -49,7 +49,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
 
   Future<void> _refresh() async {
     try {
-      final updated = await ref.read(restaurantServiceProvider).getOrder(widget.order.id);
+      final updated = await ref.read(senderServiceProvider).getOrder(widget.order.id);
       if (!mounted) return;
       setState(() => _current = updated);
       _fitMap(updated);
@@ -71,7 +71,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   }
 
   List<LatLng> _points(OrderModel o) => [
-        if (o.hasRestaurantCoords) LatLng(o.restaurantLat!, o.restaurantLng!),
+        if (o.hasPickupCoords) LatLng(o.pickupLat!, o.pickupLng!),
         if (o.hasCustomerCoords) LatLng(o.customerLat!, o.customerLng!),
         if (o.driver?.lat != null && o.driver?.lng != null) LatLng(o.driver!.lat!, o.driver!.lng!),
       ];
@@ -98,12 +98,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   }
 
   Set<Marker> _markers(OrderModel o) => {
-        if (o.hasRestaurantCoords)
+        if (o.hasPickupCoords)
           Marker(
-            markerId: const MarkerId('restaurant'),
-            position: LatLng(o.restaurantLat!, o.restaurantLng!),
+            markerId: const MarkerId('pickup'),
+            position: LatLng(o.pickupLat!, o.pickupLng!),
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-            infoWindow: InfoWindow(title: o.restaurantName ?? tr('restaurant_pickup')),
+            infoWindow: InfoWindow(title: o.pickupName ?? tr('pickup_label')),
           ),
         if (o.hasCustomerCoords)
           Marker(
@@ -128,7 +128,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       return MapPlaceholder(
         height: 300,
         showRoute: false,
-        pickupLabel: tr('restaurant_pickup'),
+        pickupLabel: tr('pickup_label'),
         dropLabel: o.customerName,
         radius: BorderRadius.zero,
       );
@@ -154,7 +154,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       ('created', tr('order_created')),
       ('searching_driver', tr('st_searching_driver')),
       ('driver_assigned', tr('st_driver_assigned')),
-      ('arrived_at_restaurant', tr('st_arrived_at_restaurant')),
+      ('arrived_at_pickup', tr('st_arrived_at_pickup')),
       ('picked_up', tr('st_picked_up')),
       ('on_the_way', tr('st_on_the_way')),
       ('delivered', tr('st_delivered')),
@@ -277,6 +277,19 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                         ),
                       ]),
                     ],
+                    if (o.items.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Text(tr('package_items'),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.slate)),
+                      const SizedBox(height: 6),
+                      ...o.items.map((i) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                              Expanded(child: Text('${i.name} ×${i.quantity}', style: const TextStyle(fontSize: 13))),
+                              Text('AED ${i.totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            ]),
+                          )),
+                    ],
                     const SizedBox(height: 14),
                     StatusTimeline(steps: _buildTimeline(o)),
                   ],
@@ -293,7 +306,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     switch (s) {
       case 'searching_driver': return tr('track_searching');
       case 'driver_assigned': return tr('track_assigned');
-      case 'arrived_at_restaurant': return tr('st_arrived_at_restaurant');
+      case 'arrived_at_pickup': return tr('st_arrived_at_pickup');
       case 'picked_up': return tr('track_picked_up');
       case 'on_the_way': return tr('track_on_the_way');
       case 'delivered': return tr('track_delivered');

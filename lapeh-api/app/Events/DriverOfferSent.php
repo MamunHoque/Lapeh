@@ -34,14 +34,13 @@ class DriverOfferSent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        $restaurant = $this->order->restaurant;
         return [
             'offer_id' => $this->offer->id,
             'order_no' => $this->order->order_no,
-            'restaurant_name' => $restaurant->name,
-            'restaurant_lat' => $restaurant->lat,
-            'restaurant_lng' => $restaurant->lng,
-            'restaurant_address' => $restaurant->address,
+            'pickup_name' => $this->order->sender?->displayName(),
+            'pickup_lat' => $this->order->pickup_lat,
+            'pickup_lng' => $this->order->pickup_lng,
+            'pickup_address' => $this->order->pickup_address,
             'delivery_fee' => $this->order->delivery_fee,
             'distance_km' => $this->order->distance_km,
             'timeout_sec' => $this->timeoutSec,

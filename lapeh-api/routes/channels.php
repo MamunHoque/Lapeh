@@ -8,7 +8,7 @@ Broadcast::channel('order.{orderId}', function ($user, int $orderId) {
     $order = Order::find($orderId);
     if (!$order) return false;
     if ($user->role === 'admin') return true;
-    if ($user->role === 'restaurant' && $user->restaurant?->id === $order->restaurant_id) return true;
+    if ($user->role === 'sender' && $user->sender?->id === $order->sender_id) return true;
     if ($user->role === 'driver' && $user->driver?->id === $order->driver_id) return true;
     return false;
 });

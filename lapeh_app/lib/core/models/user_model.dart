@@ -5,12 +5,13 @@ class UserModel {
   final String name;
   final String phone;
   final String? email;
-  final String role; // admin | restaurant | driver
+  final String role; // admin | sender | driver
   final String status;
   final String locale;
   final String? avatar;
+  final bool phoneVerified;
   final DriverProfile? driver;
-  final RestaurantProfile? restaurant;
+  final SenderProfile? sender;
 
   const UserModel({
     required this.id,
@@ -21,8 +22,9 @@ class UserModel {
     required this.status,
     required this.locale,
     this.avatar,
+    this.phoneVerified = false,
     this.driver,
-    this.restaurant,
+    this.sender,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
@@ -34,12 +36,27 @@ class UserModel {
         status: j['status'],
         locale: j['locale'] ?? 'en',
         avatar: j['avatar'],
+        phoneVerified: j['phone_verified'] ?? false,
         driver: j['driver'] != null ? DriverProfile.fromJson(j['driver']) : null,
-        restaurant: j['restaurant'] != null ? RestaurantProfile.fromJson(j['restaurant']) : null,
+        sender: j['sender'] != null ? SenderProfile.fromJson(j['sender']) : null,
+      );
+
+  UserModel copyWith({String? locale, bool? phoneVerified, SenderProfile? sender}) => UserModel(
+        id: id,
+        name: name,
+        phone: phone,
+        email: email,
+        role: role,
+        status: status,
+        locale: locale ?? this.locale,
+        avatar: avatar,
+        phoneVerified: phoneVerified ?? this.phoneVerified,
+        driver: driver,
+        sender: sender ?? this.sender,
       );
 
   bool get isDriver => role == 'driver';
-  bool get isRestaurant => role == 'restaurant';
+  bool get isSender => role == 'sender';
   bool get isAdmin => role == 'admin';
 }
 
@@ -70,13 +87,40 @@ class DriverProfile {
       );
 }
 
-class RestaurantProfile {
+class SenderProfile {
   final int id;
-  final String name;
-  final String? logo;
+  final String type; // individual | business
+  final String? businessName;
+  final String? businessCategory;
+  final String? contactPersonName;
+  final String? defaultPickupAddress;
+  final double? defaultPickupLat;
+  final double? defaultPickupLng;
+  final String status;
 
-  const RestaurantProfile({required this.id, required this.name, this.logo});
+  const SenderProfile({
+    required this.id,
+    required this.type,
+    this.businessName,
+    this.businessCategory,
+    this.contactPersonName,
+    this.defaultPickupAddress,
+    this.defaultPickupLat,
+    this.defaultPickupLng,
+    required this.status,
+  });
 
-  factory RestaurantProfile.fromJson(Map<String, dynamic> j) =>
-      RestaurantProfile(id: j['id'], name: j['name'], logo: j['logo']);
+  bool get isBusiness => type == 'business';
+
+  factory SenderProfile.fromJson(Map<String, dynamic> j) => SenderProfile(
+        id: j['id'],
+        type: j['type'] ?? 'individual',
+        businessName: j['business_name'],
+        businessCategory: j['business_category'],
+        contactPersonName: j['contact_person_name'],
+        defaultPickupAddress: j['default_pickup_address'],
+        defaultPickupLat: asDouble(j['default_pickup_lat']),
+        defaultPickupLng: asDouble(j['default_pickup_lng']),
+        status: j['status'] ?? 'pending',
+      );
 }

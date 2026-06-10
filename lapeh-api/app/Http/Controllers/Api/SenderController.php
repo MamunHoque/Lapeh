@@ -8,28 +8,27 @@ use App\Models\Complaint;
 use App\Models\ComplaintAttachment;
 use App\Models\DriverRating;
 use App\Models\Order;
-use App\Services\DispatchService;
-use App\Services\FeeCalculator;
-use App\Services\MapService;
+use App\Models\OrderItem;
+use App\Models\OrderStatusLog;
 use App\Services\OrderService;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class RestaurantController extends Controller
+class SenderController extends Controller
 {
     public function dashboard(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $sender = $request->user()->sender;
         $today = now()->startOfDay();
 
-        $active = Order::where('restaurant_id', $restaurant->id)
+        $active = Order::where('sender_id', $sender->id)
             ->whereNotIn('status', ['delivered', 'cancelled'])
-            ->with(['driver.user'])
+            ->with(['driver.user', 'items'])
             ->orderByDesc('created_at')
             ->get();
 
-        $todayStats = Order::where('restaurant_id', $restaurant->id)
+        $todayStats = Order::where('sender_id', $sender->id)
             ->where('created_at', '>=', $today)
             ->selectRaw('
                 COUNT(*) as total,
@@ -51,35 +50,87 @@ class RestaurantController extends Controller
         ]);
     }
 
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $sender = $request->user()->sender;
+
+        $data = $request->validate([
+            'business_name' => 'nullable|string|max:255',
+            'business_category' => 'nullable|string|max:255',
+            'contact_person_name' => 'nullable|string|max:255',
+            'default_pickup_address' => 'nullable|string|max:500',
+            'default_pickup_lat' => 'nullable|numeric|between:-90,90',
+            'default_pickup_lng' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        $sender->update($data);
+
+        return response()->json(['sender' => $sender->fresh()]);
+    }
+
     public function createOrder(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $user = $request->user();
+
+        // Unverified senders cannot create delivery requests.
+        abort_unless($user->isPhoneVerified(), 403, 'Verify your phone number first.');
+
+        $sender = $user->sender;
 
         $data = $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string',
-            'order_value' => 'required|numeric|min:0',
-            'prep_time_min' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
+            // Pickup (prefilled from sender default, editable per request)
+            'pickup_address' => 'nullable|string|max:500',
+            'pickup_lat' => 'nullable|numeric|between:-90,90',
+            'pickup_lng' => 'nullable|numeric|between:-180,180',
+            // Package items
+            'items' => 'required|array|min:1',
+            'items.*.name' => 'required|string|max:255',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.description' => 'nullable|string|max:500',
         ]);
+
+        // Fall back to the sender's default pickup when not provided per request.
+        $pickupAddress = $data['pickup_address'] ?? $sender->default_pickup_address;
+        $pickupLat = $data['pickup_lat'] ?? $sender->default_pickup_lat;
+        $pickupLng = $data['pickup_lng'] ?? $sender->default_pickup_lng;
+
+        $orderValue = collect($data['items'])
+            ->sum(fn($i) => (float) $i['unit_price'] * (int) $i['quantity']);
 
         $order = Order::create([
             'order_no' => OrderService::generateOrderNo(),
-            'restaurant_id' => $restaurant->id,
+            'sender_id' => $sender->id,
+            'pickup_address' => $pickupAddress,
+            'pickup_lat' => $pickupLat,
+            'pickup_lng' => $pickupLng,
             'customer_name' => $data['customer_name'],
             'customer_phone' => $data['customer_phone'],
-            'order_value' => $data['order_value'],
-            'prep_time_min' => $data['prep_time_min'] ?? null,
+            'order_value' => $orderValue,
             'notes' => $data['notes'] ?? null,
             'status' => 'waiting_for_location',
             'location_token' => OrderService::generateLocationToken(),
             'otp_code' => OrderService::generateOtp(),
         ]);
 
-        \App\Models\OrderStatusLog::create([
+        foreach ($data['items'] as $item) {
+            OrderItem::create([
+                'order_id' => $order->id,
+                'name' => $item['name'],
+                'quantity' => $item['quantity'],
+                'unit_price' => $item['unit_price'],
+                'total_price' => round((float) $item['unit_price'] * (int) $item['quantity'], 2),
+                'description' => $item['description'] ?? null,
+            ]);
+        }
+
+        OrderStatusLog::create([
             'order_id' => $order->id,
             'status' => 'waiting_for_location',
-            'actor' => $request->user()->id,
+            'actor' => $user->id,
         ]);
 
         $customerLink = url("/c/{$order->location_token}");
@@ -87,8 +138,8 @@ class RestaurantController extends Controller
         app(SmsService::class)->send(
             $order->customer_phone,
             'order_created',
-            ['link' => $customerLink, 'order_no' => $order->order_no],
-            $request->user()->locale ?? 'en',
+            ['link' => $customerLink, 'order_no' => $order->order_no, 'sender' => $sender->displayName()],
+            $user->locale ?? 'en',
         );
 
         ActivityLog::record('order.created', $order, [
@@ -98,17 +149,17 @@ class RestaurantController extends Controller
         ]);
 
         return response()->json([
-            'order' => $this->orderDetail($order->fresh(['restaurant', 'statusLogs'])),
+            'order' => $this->orderDetail($order->fresh(['sender.user', 'statusLogs', 'items'])),
             'customer_link' => $customerLink,
         ], 201);
     }
 
     public function listOrders(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $sender = $request->user()->sender;
 
-        $query = Order::where('restaurant_id', $restaurant->id)
-            ->with(['driver.user'])
+        $query = Order::where('sender_id', $sender->id)
+            ->with(['driver.user', 'items'])
             ->orderByDesc('created_at');
 
         if ($request->status) {
@@ -122,22 +173,22 @@ class RestaurantController extends Controller
 
     public function showOrder(Request $request, Order $order): JsonResponse
     {
-        abort_unless($order->restaurant_id === $request->user()->restaurant->id, 403);
+        abort_unless($order->sender_id === $request->user()->sender->id, 403);
 
         return response()->json([
-            'order' => $this->orderDetail($order->load(['restaurant', 'driver.user', 'statusLogs', 'proof', 'rating'])),
+            'order' => $this->orderDetail($order->load(['sender.user', 'driver.user', 'statusLogs', 'proof', 'rating', 'items'])),
         ]);
     }
 
     public function resendLink(Request $request, Order $order): JsonResponse
     {
-        abort_unless($order->restaurant_id === $request->user()->restaurant->id, 403);
+        abort_unless($order->sender_id === $request->user()->sender->id, 403);
 
         $link = url("/c/{$order->location_token}");
         app(SmsService::class)->send(
             $order->customer_phone,
             'order_created',
-            ['link' => $link, 'order_no' => $order->order_no],
+            ['link' => $link, 'order_no' => $order->order_no, 'sender' => $request->user()->sender->displayName()],
         );
 
         ActivityLog::record('order.link_resent', $order, ['order_no' => $order->order_no]);
@@ -147,14 +198,14 @@ class RestaurantController extends Controller
 
     public function cancelOrder(Request $request, Order $order): JsonResponse
     {
-        abort_unless($order->restaurant_id === $request->user()->restaurant->id, 403);
+        abort_unless($order->sender_id === $request->user()->sender->id, 403);
         abort_if($order->isTerminal(), 422, 'Order already in terminal state.');
 
         $data = $request->validate(['reason' => 'nullable|string']);
 
         $order->update(['status' => 'cancelled', 'cancelled_reason' => $data['reason'] ?? null]);
 
-        \App\Models\OrderStatusLog::create([
+        OrderStatusLog::create([
             'order_id' => $order->id,
             'status' => 'cancelled',
             'actor' => $request->user()->id,
@@ -177,7 +228,7 @@ class RestaurantController extends Controller
 
     public function rateDriver(Request $request, Order $order): JsonResponse
     {
-        abort_unless($order->restaurant_id === $request->user()->restaurant->id, 403);
+        abort_unless($order->sender_id === $request->user()->sender->id, 403);
         abort_unless($order->status === 'delivered', 422, 'Can only rate delivered orders.');
         abort_if($order->rating()->exists(), 422, 'Already rated.');
 
@@ -191,7 +242,7 @@ class RestaurantController extends Controller
 
         $rating = DriverRating::create([
             'order_id' => $order->id,
-            'restaurant_id' => $order->restaurant_id,
+            'sender_id' => $order->sender_id,
             'driver_id' => $order->driver_id,
             'rating' => $data['rating'],
             'tags' => $data['tags'] ?? [],
@@ -215,11 +266,11 @@ class RestaurantController extends Controller
 
     public function history(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $sender = $request->user()->sender;
 
-        $orders = Order::where('restaurant_id', $restaurant->id)
+        $orders = Order::where('sender_id', $sender->id)
             ->whereIn('status', ['delivered', 'cancelled'])
-            ->with(['driver.user'])
+            ->with(['driver.user', 'items'])
             ->orderByDesc('created_at')
             ->paginate(20);
 
@@ -230,11 +281,11 @@ class RestaurantController extends Controller
 
     public function reports(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $sender = $request->user()->sender;
         $today = now()->startOfDay();
         $yesterday = now()->subDay()->startOfDay();
 
-        $todayAgg = Order::where('restaurant_id', $restaurant->id)
+        $todayAgg = Order::where('sender_id', $sender->id)
             ->where('created_at', '>=', $today)
             ->selectRaw('
                 COUNT(*) as orders,
@@ -244,12 +295,12 @@ class RestaurantController extends Controller
                 AVG(CASE WHEN status = "delivered" THEN delivery_fee ELSE NULL END) as avg_fee
             ')->first();
 
-        $yesterdayRevenue = Order::where('restaurant_id', $restaurant->id)
+        $yesterdayRevenue = Order::where('sender_id', $sender->id)
             ->where('status', 'delivered')
             ->whereBetween('created_at', [$yesterday, $today])
             ->sum('delivery_fee');
 
-        $recent = Order::where('restaurant_id', $restaurant->id)
+        $recent = Order::where('sender_id', $sender->id)
             ->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('created_at')
             ->limit(15)
@@ -278,7 +329,7 @@ class RestaurantController extends Controller
 
     public function createComplaint(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $sender = $request->user()->sender;
 
         $allowedTypes = implode(',', array_keys(config('lapeh.complaint_types')));
         $data = $request->validate([
@@ -291,7 +342,7 @@ class RestaurantController extends Controller
 
         $complaint = Complaint::create([
             'order_id' => $data['order_id'] ?? null,
-            'restaurant_id' => $restaurant->id,
+            'sender_id' => $sender->id,
             'type' => $data['type'],
             'description' => $data['description'],
         ]);
@@ -305,7 +356,7 @@ class RestaurantController extends Controller
 
         ActivityLog::record('complaint.created', $complaint, [
             'type' => $complaint->type,
-            'restaurant' => $restaurant->name,
+            'sender' => $sender->displayName(),
         ]);
 
         return response()->json(['complaint' => $complaint->load('attachments')], 201);
@@ -313,14 +364,26 @@ class RestaurantController extends Controller
 
     public function listComplaints(Request $request): JsonResponse
     {
-        $restaurant = $request->user()->restaurant;
+        $sender = $request->user()->sender;
 
-        $complaints = Complaint::where('restaurant_id', $restaurant->id)
+        $complaints = Complaint::where('sender_id', $sender->id)
             ->with(['order', 'attachments'])
             ->orderByDesc('created_at')
             ->paginate(20);
 
         return response()->json(['complaints' => $complaints]);
+    }
+
+    protected function itemsPayload(Order $order): array
+    {
+        return $order->items->map(fn($i) => [
+            'id' => $i->id,
+            'name' => $i->name,
+            'quantity' => $i->quantity,
+            'unit_price' => (float) $i->unit_price,
+            'total_price' => (float) $i->total_price,
+            'description' => $i->description,
+        ])->all();
     }
 
     protected function orderSummary(Order $order): array
@@ -338,6 +401,8 @@ class RestaurantController extends Controller
             'distance_km' => $order->distance_km,
             'location_token' => $order->location_token,
             'customer_link' => url("/c/{$order->location_token}"),
+            'items_count' => $order->relationLoaded('items') ? $order->items->count() : null,
+            'items' => $order->relationLoaded('items') ? $this->itemsPayload($order) : [],
             'driver' => $order->driver ? [
                 'id' => $order->driver->id,
                 'name' => $order->driver->user->name,
@@ -354,20 +419,19 @@ class RestaurantController extends Controller
     {
         return array_merge($this->orderSummary($order), [
             'notes' => $order->notes,
-            'prep_time_min' => $order->prep_time_min,
             'customer_address' => $order->customer_address,
             'customer_lat' => $order->customer_lat,
             'customer_lng' => $order->customer_lng,
-            'restaurant_name' => $order->restaurant->name,
-            'restaurant_lat' => $order->restaurant->lat,
-            'restaurant_lng' => $order->restaurant->lng,
+            'pickup_address' => $order->pickup_address,
+            'pickup_lat' => $order->pickup_lat,
+            'pickup_lng' => $order->pickup_lng,
+            'sender_name' => $order->sender?->displayName(),
+            'items' => $this->itemsPayload($order),
             'otp_code' => $order->otp_code,
             'assigned_at' => $order->assigned_at,
             'picked_up_at' => $order->picked_up_at,
             'delivered_at' => $order->delivered_at,
             'cancelled_reason' => $order->cancelled_reason,
-            'location_token' => $order->location_token,
-            'customer_link' => url("/c/{$order->location_token}"),
             'status_timeline' => $order->statusLogs?->map(fn($l) => [
                 'status' => $l->status,
                 'note' => $l->note,

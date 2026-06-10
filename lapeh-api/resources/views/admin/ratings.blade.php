@@ -3,13 +3,13 @@
 @section('content')
 <div class="card">
     <table class="table">
-        <thead><tr><th>{{ __('admin.order') }}</th><th>{{ __('admin.driver') }}</th><th>{{ __('admin.restaurant') }}</th><th>{{ __('admin.rating') }}</th><th>{{ __('admin.tags') }}</th><th>{{ __('admin.date') }}</th></tr></thead>
+        <thead><tr><th>{{ __('admin.order') }}</th><th>{{ __('admin.driver') }}</th><th>{{ __('admin.sender') }}</th><th>{{ __('admin.rating') }}</th><th>{{ __('admin.tags') }}</th><th>{{ __('admin.date') }}</th></tr></thead>
         <tbody>
             @forelse($ratings as $rating)
             <tr>
                 <td><span class="mono">{{ $rating->order?->order_no }}</span></td>
                 <td style="font-size:13px;font-weight:600;">{{ $rating->driver?->user?->name }}</td>
-                <td style="font-size:12.5px;">{{ $rating->restaurant?->name }}</td>
+                <td style="font-size:12.5px;">{{ $rating->sender?->displayName() }}</td>
                 <td>
                     @for($i=1;$i<=5;$i++)<span style="color:{{ $i <= $rating->rating ? '#E08600' : '#DDD' }}">★</span>@endfor
                 </td>

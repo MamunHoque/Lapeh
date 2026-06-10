@@ -1,6 +1,6 @@
 # Lapeh
 
-Delivery dispatch platform: Laravel API + admin portal, and a Flutter app for restaurants and drivers.
+Generic parcel-delivery platform (sender → courier, Uber-Parcel style): Laravel API + admin portal, and a Flutter app for senders and drivers. A sender (individual or business) creates a delivery request with package items; the receiver confirms drop-off via a tokenized web link; a driver delivers.
 
 For production deployment, background workers, and the client-owned accounts checklist, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
@@ -94,7 +94,7 @@ redis-cli ping || redis-server --daemonize yes
 ```
 lapeh/
 ├── lapeh-api/       Laravel API, admin portal, customer tracking pages
-├── lapeh_app/       Flutter app (restaurant + driver roles)
+├── lapeh_app/       Flutter app (sender + driver roles)
 ├── TEST_CREDENTIALS.md
 ├── DEPLOYMENT.md    Production deployment & handover
 └── start.sh         Start admin + app together

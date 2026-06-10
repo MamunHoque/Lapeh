@@ -24,7 +24,7 @@ return new class extends Migration
         Schema::create('payment_splits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('payment_id')->constrained()->cascadeOnDelete();
-            $table->enum('payee_type', ['restaurant', 'driver', 'fleet', 'platform']);
+            $table->enum('payee_type', ['sender', 'driver', 'fleet', 'platform']);
             $table->unsignedBigInteger('payee_id');
             $table->decimal('amount', 10, 2);
             $table->enum('status', ['pending', 'paid', 'failed'])->default('pending');

@@ -24,6 +24,41 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     return result.user;
   }
 
+  /// Register a sender; the returned dev OTP (if any) helps testing.
+  Future<({UserModel user, String? devOtp})> registerSender({
+    required String type,
+    required String name,
+    required String phone,
+    required String password,
+    String? defaultPickupAddress,
+    double? defaultPickupLat,
+    double? defaultPickupLng,
+    String? businessName,
+    String? businessCategory,
+    String? contactPersonName,
+  }) async {
+    state = const AsyncLoading();
+    final result = await _service.registerSender(
+      type: type, name: name, phone: phone, password: password,
+      defaultPickupAddress: defaultPickupAddress,
+      defaultPickupLat: defaultPickupLat,
+      defaultPickupLng: defaultPickupLng,
+      businessName: businessName,
+      businessCategory: businessCategory,
+      contactPersonName: contactPersonName,
+    );
+    state = AsyncData(result.user);
+    return (user: result.user, devOtp: result.devOtp);
+  }
+
+  Future<UserModel> verifyOtp(String code) async {
+    final user = await _service.verifyOtp(code);
+    state = AsyncData(user);
+    return user;
+  }
+
+  Future<String?> resendOtp() => _service.resendOtp();
+
   Future<void> logout() async {
     await _service.logout();
     state = const AsyncData(null);
@@ -31,21 +66,9 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
 
   Future<void> updateLocale(String locale) async {
     await _service.updateLocale(locale);
-    // Refresh user to reflect locale change
     final user = state.valueOrNull;
     if (user != null) {
-      state = AsyncData(UserModel(
-        id: user.id,
-        name: user.name,
-        phone: user.phone,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        locale: locale,
-        avatar: user.avatar,
-        driver: user.driver,
-        restaurant: user.restaurant,
-      ));
+      state = AsyncData(user.copyWith(locale: locale));
     }
   }
 }

@@ -101,9 +101,9 @@
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             {{ __('admin.orders') }}
         </a>
-        <a href="{{ route('admin.restaurants') }}" class="nav-item {{ request()->routeIs('admin.restaurants*') ? 'active' : '' }}">
+        <a href="{{ route('admin.senders') }}" class="nav-item {{ request()->routeIs('admin.senders*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-            {{ __('admin.restaurants') }}
+            {{ __('admin.senders') }}
         </a>
         <a href="{{ route('admin.drivers') }}" class="nav-item {{ request()->routeIs('admin.drivers*') ? 'active' : '' }}">
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>

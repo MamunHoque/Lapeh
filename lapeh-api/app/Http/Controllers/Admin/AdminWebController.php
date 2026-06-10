@@ -11,7 +11,7 @@ use App\Models\Fleet;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PricingSetting;
-use App\Models\Restaurant;
+use App\Models\Sender;
 use App\Models\SmsLog;
 use App\Models\SmsTemplate;
 use App\Models\User;
@@ -68,17 +68,17 @@ class AdminWebController extends Controller
             'online_drivers' => Driver::where('status', 'online')->count(),
             'on_delivery' => Driver::where('status', 'on_delivery')->count(),
             'open_complaints' => Complaint::where('status', 'open')->count(),
-            'total_restaurants' => Restaurant::where('status', 'active')->count(),
+            'total_senders' => Sender::where('status', 'active')->count(),
             'orders_month' => Order::where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 
         $liveOrders = Order::whereNotIn('status', ['delivered', 'cancelled'])
-            ->with(['restaurant', 'driver.user'])
+            ->with(['sender.user', 'driver.user'])
             ->orderByDesc('created_at')
             ->limit(10)
             ->get();
 
-        $recentOrders = Order::with(['restaurant', 'driver.user'])
+        $recentOrders = Order::with(['sender.user', 'driver.user'])
             ->orderByDesc('created_at')
             ->limit(5)
             ->get();
@@ -89,7 +89,7 @@ class AdminWebController extends Controller
     public function live()
     {
         $orders = Order::whereNotIn('status', ['delivered', 'cancelled'])
-            ->with(['restaurant', 'driver.user'])
+            ->with(['sender.user', 'driver.user'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -103,113 +103,112 @@ class AdminWebController extends Controller
 
     public function orders(Request $request)
     {
-        $q = Order::with(['restaurant', 'driver.user'])->orderByDesc('created_at');
+        $q = Order::with(['sender.user', 'driver.user'])->orderByDesc('created_at');
 
         if ($request->status) $q->where('status', $request->status);
-        if ($request->restaurant_id) $q->where('restaurant_id', $request->restaurant_id);
+        if ($request->sender_id) $q->where('sender_id', $request->sender_id);
         if ($request->search) $q->where(function ($q) use ($request) {
             $q->where('order_no', 'like', "%{$request->search}%")
               ->orWhere('customer_name', 'like', "%{$request->search}%");
         });
 
         $orders = $q->paginate(25)->withQueryString();
-        $restaurants = Restaurant::select('id', 'name')->get();
+        $senders = Sender::with('user')->get();
 
-        return view('admin.orders.index', compact('orders', 'restaurants'));
+        return view('admin.orders.index', compact('orders', 'senders'));
     }
 
     public function orderShow(Order $order)
     {
-        $order->load(['restaurant', 'driver.user', 'statusLogs', 'proof', 'rating', 'payment', 'complaint']);
+        $order->load(['sender.user', 'driver.user', 'statusLogs', 'proof', 'rating', 'payment', 'complaint', 'items']);
         return view('admin.orders.show', compact('order'));
     }
 
-    public function restaurants(Request $request)
+    public function senders(Request $request)
     {
-        $restaurants = Restaurant::with(['zone', 'user'])
-            ->when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%"))
+        $senders = Sender::with('user')
+            ->when($request->search, fn($q) => $q->where('business_name', 'like', "%{$request->search}%")
+                ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$request->search}%")->orWhere('phone', 'like', "%{$request->search}%")))
             ->orderByDesc('created_at')
             ->paginate(25)->withQueryString();
 
-        return view('admin.restaurants.index', compact('restaurants'));
+        return view('admin.senders.index', compact('senders'));
     }
 
-    public function restaurantCreate()
+    public function senderCreate()
     {
-        $zones = Zone::where('status', 'active')->get();
-        return view('admin.restaurants.create', compact('zones'));
+        return view('admin.senders.create');
     }
 
-    public function restaurantStore(Request $request)
+    public function senderStore(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string',
-            'name_ar' => 'nullable|string',
-            'phone' => 'required|string',
-            'area' => 'required|string',
-            'address' => 'required|string',
-            'lat' => 'required|numeric',
-            'lng' => 'required|numeric',
-            'zone_id' => 'nullable|exists:zones,id',
+            'type' => 'required|in:individual,business',
             'user_name' => 'required|string',
             'user_phone' => 'required|string|unique:users,phone',
             'user_password' => 'required|string|min:6',
+            'business_name' => 'required_if:type,business|nullable|string',
+            'business_category' => 'nullable|string',
+            'contact_person_name' => 'nullable|string',
+            'default_pickup_address' => 'nullable|string',
+            'default_pickup_lat' => 'nullable|numeric',
+            'default_pickup_lng' => 'nullable|numeric',
         ]);
 
         $user = User::create([
             'name' => $data['user_name'],
             'phone' => $data['user_phone'],
             'password' => $data['user_password'],
-            'role' => 'restaurant',
+            'role' => 'sender',
+            // Admin-created senders are verified/active immediately.
+            'phone_verified_at' => now(),
         ]);
 
-        $restaurant = Restaurant::create([
+        $sender = Sender::create([
             'user_id' => $user->id,
-            'name' => $data['name'],
-            'name_ar' => $data['name_ar'] ?? null,
-            'phone' => $data['phone'],
-            'area' => $data['area'],
-            'address' => $data['address'],
-            'lat' => $data['lat'],
-            'lng' => $data['lng'],
-            'zone_id' => $data['zone_id'] ?? null,
+            'type' => $data['type'],
+            'business_name' => $data['type'] === 'business' ? ($data['business_name'] ?? null) : null,
+            'business_category' => $data['type'] === 'business' ? ($data['business_category'] ?? null) : null,
+            'contact_person_name' => $data['type'] === 'business' ? ($data['contact_person_name'] ?? null) : null,
+            'default_pickup_address' => $data['default_pickup_address'] ?? null,
+            'default_pickup_lat' => $data['default_pickup_lat'] ?? null,
+            'default_pickup_lng' => $data['default_pickup_lng'] ?? null,
+            'status' => 'active',
         ]);
 
-        ActivityLog::record('restaurant.created', $restaurant, ['name' => $restaurant->name]);
+        ActivityLog::record('sender.created', $sender, ['name' => $sender->displayName()]);
 
-        return redirect()->route('admin.restaurants')->with('success', 'Restaurant created.');
+        return redirect()->route('admin.senders')->with('success', 'Sender created.');
     }
 
-    public function restaurantEdit(Restaurant $restaurant)
+    public function senderEdit(Sender $sender)
     {
-        $zones = Zone::where('status', 'active')->get();
-        return view('admin.restaurants.edit', compact('restaurant', 'zones'));
+        return view('admin.senders.edit', compact('sender'));
     }
 
-    public function restaurantUpdate(Request $request, Restaurant $restaurant)
+    public function senderUpdate(Request $request, Sender $sender)
     {
         $data = $request->validate([
-            'name' => 'required|string',
-            'name_ar' => 'nullable|string',
-            'phone' => 'required|string',
-            'area' => 'required|string',
-            'address' => 'required|string',
-            'lat' => 'required|numeric',
-            'lng' => 'required|numeric',
-            'zone_id' => 'nullable|exists:zones,id',
-            'status' => 'required|in:active,inactive',
+            'type' => 'required|in:individual,business',
+            'business_name' => 'nullable|string',
+            'business_category' => 'nullable|string',
+            'contact_person_name' => 'nullable|string',
+            'default_pickup_address' => 'nullable|string',
+            'default_pickup_lat' => 'nullable|numeric',
+            'default_pickup_lng' => 'nullable|numeric',
+            'status' => 'required|in:active,inactive,pending',
         ]);
 
-        $restaurant->update($data);
-        ActivityLog::record('restaurant.updated', $restaurant, ['name' => $restaurant->name]);
-        return redirect()->route('admin.restaurants')->with('success', 'Restaurant updated.');
+        $sender->update($data);
+        ActivityLog::record('sender.updated', $sender, ['name' => $sender->displayName()]);
+        return redirect()->route('admin.senders')->with('success', 'Sender updated.');
     }
 
-    public function restaurantDestroy(Restaurant $restaurant)
+    public function senderDestroy(Sender $sender)
     {
-        ActivityLog::record('restaurant.deleted', $restaurant, ['name' => $restaurant->name]);
-        $restaurant->delete();
-        return redirect()->route('admin.restaurants')->with('success', 'Restaurant deleted.');
+        ActivityLog::record('sender.deleted', $sender, ['name' => $sender->displayName()]);
+        $sender->delete();
+        return redirect()->route('admin.senders')->with('success', 'Sender deleted.');
     }
 
     public function drivers(Request $request)
@@ -361,7 +360,7 @@ class AdminWebController extends Controller
 
     public function complaints(Request $request)
     {
-        $complaints = Complaint::with(['restaurant', 'order'])
+        $complaints = Complaint::with(['sender.user', 'order'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->orderByDesc('created_at')
             ->paginate(25)->withQueryString();
@@ -371,7 +370,7 @@ class AdminWebController extends Controller
 
     public function complaintShow(Complaint $complaint)
     {
-        $complaint->load(['restaurant', 'order', 'attachments', 'resolver']);
+        $complaint->load(['sender.user', 'order', 'attachments', 'resolver']);
         return view('admin.complaints.show', compact('complaint'));
     }
 
@@ -396,7 +395,7 @@ class AdminWebController extends Controller
 
     public function ratings()
     {
-        $ratings = DriverRating::with(['driver.user', 'restaurant', 'order'])
+        $ratings = DriverRating::with(['driver.user', 'sender.user', 'order'])
             ->orderByDesc('created_at')
             ->paginate(25);
 
@@ -405,7 +404,7 @@ class AdminWebController extends Controller
 
     public function payments(Request $request)
     {
-        $payments = Payment::with('order.restaurant')
+        $payments = Payment::with('order.sender.user')
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->orderByDesc('created_at')
             ->paginate(25)->withQueryString();

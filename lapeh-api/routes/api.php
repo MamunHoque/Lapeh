@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\MetaController;
-use App\Http\Controllers\Api\RestaurantController;
+use App\Http\Controllers\Api\SenderController;
 use App\Http\Controllers\Customer\CustomerController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,17 +12,22 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     // Throttle credential endpoints to slow brute-force / enumeration.
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('register-sender', [AuthController::class, 'registerSender'])->middleware('throttle:5,1');
     Route::post('register-driver', [AuthController::class, 'registerDriver'])->middleware('throttle:5,1');
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
         Route::post('fcm-token', [AuthController::class, 'updateFcmToken']);
         Route::patch('locale', [AuthController::class, 'updateLocale']);
+        Route::post('verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
+        Route::post('resend-otp', [AuthController::class, 'resendOtp'])->middleware('throttle:5,1');
     });
 });
 
 // ─── Public reference data ───────────────────────────────────────────────────
 Route::get('meta', [MetaController::class, 'index']);
+Route::get('geocode/reverse', [MetaController::class, 'reverseGeocode'])
+    ->middleware(['auth:sanctum', 'throttle:60,1']);
 
 // ─── Customer (public, token-based) ──────────────────────────────────────────
 // Throttle to guard against token enumeration on the public link.
@@ -35,19 +40,20 @@ Route::prefix('c')->middleware('throttle:30,1')->group(function () {
 
 Route::post('webhooks/payment', [CustomerController::class, 'paymentWebhook'])->middleware('throttle:60,1');
 
-// ─── Restaurant role ──────────────────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'role:restaurant'])->prefix('restaurant')->group(function () {
-    Route::get('dashboard', [RestaurantController::class, 'dashboard']);
-    Route::post('orders', [RestaurantController::class, 'createOrder']);
-    Route::get('orders', [RestaurantController::class, 'listOrders']);
-    Route::get('orders/{order}', [RestaurantController::class, 'showOrder']);
-    Route::post('orders/{order}/resend-link', [RestaurantController::class, 'resendLink']);
-    Route::post('orders/{order}/cancel', [RestaurantController::class, 'cancelOrder']);
-    Route::post('orders/{order}/rate-driver', [RestaurantController::class, 'rateDriver']);
-    Route::get('history', [RestaurantController::class, 'history']);
-    Route::get('reports', [RestaurantController::class, 'reports']);
-    Route::post('complaints', [RestaurantController::class, 'createComplaint']);
-    Route::get('complaints', [RestaurantController::class, 'listComplaints']);
+// ─── Sender role ──────────────────────────────────────────────────────────────
+Route::middleware(['auth:sanctum', 'role:sender'])->prefix('sender')->group(function () {
+    Route::get('dashboard', [SenderController::class, 'dashboard']);
+    Route::patch('profile', [SenderController::class, 'updateProfile']);
+    Route::post('orders', [SenderController::class, 'createOrder']);
+    Route::get('orders', [SenderController::class, 'listOrders']);
+    Route::get('orders/{order}', [SenderController::class, 'showOrder']);
+    Route::post('orders/{order}/resend-link', [SenderController::class, 'resendLink']);
+    Route::post('orders/{order}/cancel', [SenderController::class, 'cancelOrder']);
+    Route::post('orders/{order}/rate-driver', [SenderController::class, 'rateDriver']);
+    Route::get('history', [SenderController::class, 'history']);
+    Route::get('reports', [SenderController::class, 'reports']);
+    Route::post('complaints', [SenderController::class, 'createComplaint']);
+    Route::get('complaints', [SenderController::class, 'listComplaints']);
 });
 
 // ─── Driver role ──────────────────────────────────────────────────────────────
@@ -84,11 +90,11 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::patch('users/{user}', [AdminController::class, 'updateUser']);
 
     // Resources
-    Route::get('restaurants', [AdminController::class, 'indexRestaurants']);
-    Route::post('restaurants', [AdminController::class, 'storeRestaurant']);
-    Route::get('restaurants/{restaurant}', [AdminController::class, 'showRestaurant']);
-    Route::put('restaurants/{restaurant}', [AdminController::class, 'updateRestaurant']);
-    Route::delete('restaurants/{restaurant}', [AdminController::class, 'destroyRestaurant']);
+    Route::get('senders', [AdminController::class, 'indexSenders']);
+    Route::post('senders', [AdminController::class, 'storeSender']);
+    Route::get('senders/{sender}', [AdminController::class, 'showSender']);
+    Route::put('senders/{sender}', [AdminController::class, 'updateSender']);
+    Route::delete('senders/{sender}', [AdminController::class, 'destroySender']);
 
     Route::get('drivers', [AdminController::class, 'indexDrivers']);
     Route::post('drivers', [AdminController::class, 'storeDriver']);

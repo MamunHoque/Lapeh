@@ -17,21 +17,24 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'phone', 'password',
         'role', 'status', 'locale', 'fcm_token', 'avatar',
+        'phone_verified_at', 'phone_otp_hash', 'phone_otp_expires_at',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'phone_otp_hash'];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
+            'phone_otp_expires_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
 
-    public function restaurant(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function sender(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
-        return $this->hasOne(Restaurant::class);
+        return $this->hasOne(Sender::class);
     }
 
     public function driver(): \Illuminate\Database\Eloquent\Relations\HasOne
@@ -45,6 +48,8 @@ class User extends Authenticatable
     }
 
     public function isAdmin(): bool { return $this->role === 'admin'; }
-    public function isRestaurant(): bool { return $this->role === 'restaurant'; }
+    public function isSender(): bool { return $this->role === 'sender'; }
     public function isDriver(): bool { return $this->role === 'driver'; }
+
+    public function isPhoneVerified(): bool { return $this->phone_verified_at !== null; }
 }

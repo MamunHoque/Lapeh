@@ -14,7 +14,7 @@ return [
     'dashboard' => 'لوحة التحكم',
     'live_deliveries' => 'التوصيلات المباشرة',
     'orders' => 'الطلبات',
-    'restaurants' => 'المطاعم',
+    'senders' => 'المرسلون',
     'drivers' => 'السائقون',
     'zones' => 'النطاقات',
     'payments' => 'المدفوعات',
@@ -63,7 +63,7 @@ return [
     'total' => 'الإجمالي',
     'order' => 'الطلب',
     'order_no' => 'رقم الطلب',
-    'restaurant' => 'المطعم',
+    'sender' => 'المرسل',
     'customer' => 'العميل',
     'driver' => 'السائق',
     'fee' => 'الرسوم',
@@ -112,7 +112,7 @@ return [
     'st_paid' => 'مدفوع',
     'st_searching_driver' => 'البحث عن سائق',
     'st_driver_assigned' => 'تم تعيين سائق',
-    'st_arrived_at_restaurant' => 'في المطعم',
+    'st_arrived_at_pickup' => 'في موقع الاستلام',
     'st_picked_up' => 'تم الاستلام',
     'st_on_the_way' => 'في الطريق',
     'st_delivered' => 'تم التوصيل',
@@ -120,7 +120,7 @@ return [
 
     // Roles
     'role_admin' => 'مدير',
-    'role_restaurant' => 'مطعم',
+    'role_sender' => 'مرسل',
     'role_driver' => 'سائق',
     'role_fleet' => 'أسطول',
 
@@ -135,7 +135,7 @@ return [
     'recent_orders' => 'أحدث الطلبات',
     'no_active_deliveries' => 'لا توجد توصيلات نشطة',
     'quick_actions' => 'إجراءات سريعة',
-    'add_restaurant' => 'إضافة مطعم',
+    'add_sender' => 'إضافة مرسل',
     'add_driver' => 'إضافة سائق',
     'edit_pricing' => 'تعديل التسعير',
     'open_complaints' => 'الشكاوى المفتوحة',
@@ -153,7 +153,7 @@ return [
 
     // Orders
     'search_order_placeholder' => 'ابحث عن طلب / عميل...',
-    'all_restaurants' => 'كل المطاعم',
+    'all_senders' => 'كل المرسلين',
     'no_orders_found' => 'لا توجد طلبات',
     'back_to_orders' => '→ الطلبات',
     'amounts' => 'المبالغ',
@@ -167,10 +167,10 @@ return [
     'driver_rating' => 'تقييم السائق',
 
     // Restaurants
-    'search_restaurant_placeholder' => 'ابحث عن مطعم...',
-    'no_restaurants_found' => 'لا توجد مطاعم',
-    'confirm_delete_restaurant' => 'حذف هذا المطعم؟',
-    'new_restaurant' => 'مطعم جديد',
+    'search_sender_placeholder' => 'ابحث عن مرسل...',
+    'no_senders_found' => 'لا يوجد مرسلون',
+    'confirm_delete_sender' => 'حذف هذا المرسل؟',
+    'new_sender' => 'مرسل جديد',
     'name_en' => 'الاسم (إنجليزي)',
     'name_ar' => 'الاسم (عربي)',
     'no_zone' => 'بدون نطاق',
@@ -178,8 +178,8 @@ return [
     'contact_name' => 'اسم المسؤول',
     'phone_login' => 'هاتف الدخول',
     'min_6_chars' => '6 أحرف على الأقل',
-    'create_restaurant' => 'إنشاء مطعم',
-    'back_to_restaurants' => '→ المطاعم',
+    'create_sender' => 'إنشاء مرسل',
+    'back_to_senders' => '→ المرسلون',
     'edit_prefix' => 'تعديل:',
 
     // Drivers
@@ -287,4 +287,18 @@ return [
     'queue_driver' => 'مشغّل الطوابير',
     'broadcast' => 'البث',
     'manage_pricing' => '← إدارة التسعير',
+    'sender_type' => 'نوع المرسل',
+    'individual' => 'فرد',
+    'business' => 'شركة',
+    'business_details' => 'تفاصيل الشركة',
+    'business_name' => 'اسم الشركة',
+    'business_category' => 'الفئة',
+    'contact_person' => 'الشخص المسؤول',
+    'default_pickup' => 'الاستلام الافتراضي',
+    'pickup' => 'الاستلام',
+    'package_items' => 'عناصر الطرد',
+    'item' => 'العنصر',
+    'qty' => 'الكمية',
+    'unit_price' => 'سعر الوحدة',
+    'total_item_value' => 'إجمالي قيمة العناصر',
 ];

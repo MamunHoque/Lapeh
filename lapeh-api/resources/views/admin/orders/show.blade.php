@@ -28,10 +28,13 @@
             </div>
             <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
                 <div>
-                    <div style="font-size:11px;font-weight:700;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">{{ __('admin.restaurant') }}</div>
-                    <div style="font-size:14px;font-weight:600;">{{ $order->restaurant->name }}</div>
-                    <div style="font-size:12.5px;color:var(--slate);">{{ $order->restaurant->area }}</div>
-                    <div style="font-size:12.5px;color:var(--slate);">{{ $order->restaurant->address }}</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">{{ __('admin.sender') }}</div>
+                    <div style="font-size:14px;font-weight:600;">{{ $order->sender?->displayName() }}</div>
+                    <div style="font-size:12.5px;color:var(--slate);">{{ $order->sender?->isBusiness() ? __('admin.business') : __('admin.individual') }}</div>
+                    @if($order->pickup_address)
+                        <div style="font-size:11px;font-weight:700;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 2px;">{{ __('admin.pickup') }}</div>
+                        <div style="font-size:12.5px;color:var(--slate);">{{ $order->pickup_address }}</div>
+                    @endif
                 </div>
                 <div>
                     <div style="font-size:11px;font-weight:700;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">{{ __('admin.customer') }}</div>
@@ -76,6 +79,32 @@
             </div>
             @endif
         </div>
+
+        @if($order->items->count())
+        <div class="card">
+            <div class="card-head"><h3 class="sora" style="font-size:14px;font-weight:700;">{{ __('admin.package_items') }}</h3></div>
+            <table class="table">
+                <thead><tr><th>{{ __('admin.item') }}</th><th>{{ __('admin.qty') }}</th><th>{{ __('admin.unit_price') }}</th><th>{{ __('admin.total') }}</th></tr></thead>
+                <tbody>
+                    @foreach($order->items as $item)
+                    <tr>
+                        <td>
+                            <div style="font-size:13px;font-weight:600;">{{ $item->name }}</div>
+                            @if($item->description)<div style="font-size:11.5px;color:var(--slate);">{{ $item->description }}</div>@endif
+                        </td>
+                        <td>{{ $item->quantity }}</td>
+                        <td>AED {{ number_format($item->unit_price, 2) }}</td>
+                        <td><span class="sora" style="font-weight:600;">AED {{ number_format($item->total_price, 2) }}</span></td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div style="padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:13px;font-weight:700;">
+                <span>{{ __('admin.total_item_value') }}</span>
+                <span style="color:var(--pink);">AED {{ number_format($order->order_value, 2) }}</span>
+            </div>
+        </div>
+        @endif
 
         @if($order->proof)
         <div class="card">

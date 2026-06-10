@@ -5,7 +5,7 @@ import '../../core/i18n.dart';
 import '../../core/models/order_model.dart';
 import '../../core/status_meta.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/providers/restaurant_provider.dart';
+import '../../core/providers/sender_provider.dart';
 import '../../shared/widgets.dart';
 import 'create_request_screen.dart';
 import 'tracking_screen.dart';
@@ -40,7 +40,7 @@ class DashboardScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(tr('good_evening'), style: const TextStyle(fontSize: 12.5, color: AppColors.slate, fontWeight: FontWeight.w600)),
-                      Text(auth?.restaurant?.name ?? auth?.name ?? tr('restaurant_pickup'), style: T.h2),
+                      Text(auth?.sender?.businessName ?? auth?.name ?? tr('sender'), style: T.h2),
                     ],
                   ),
                 ),
@@ -62,7 +62,8 @@ class DashboardScreen extends ConsumerWidget {
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRequestScreen())),
             ),
             const SizedBox(height: 18),
-            SectionHeader(tr('active_deliveries'), action: tr('see_all')),
+            SectionHeader(tr('active_deliveries'), action: tr('see_all'),
+                onAction: () => ref.read(senderTabProvider.notifier).state = 1),
             const SizedBox(height: 10),
             if (data.activeDeliveries.isEmpty)
               Center(

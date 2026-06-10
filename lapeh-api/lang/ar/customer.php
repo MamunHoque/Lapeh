@@ -38,7 +38,7 @@ return [
     'track_title' => 'تتبع طلبك',
     'status_searching' => 'البحث عن سائق',
     'status_assigned' => 'تم تعيين سائق',
-    'status_at_restaurant' => 'في المطعم',
+    'status_at_pickup' => 'في موقع الاستلام',
     'status_picked_up' => 'تم الاستلام',
     'status_on_the_way' => 'في الطريق',
     'status_delivered' => 'تم التوصيل ✓',
@@ -53,13 +53,13 @@ return [
     'tl_paid' => 'تم الدفع',
     'tl_searching' => 'البحث عن سائق',
     'tl_assigned' => 'تم تعيين سائق',
-    'tl_at_restaurant' => 'في المطعم',
+    'tl_at_pickup' => 'في موقع الاستلام',
     'tl_picked_up' => 'تم استلام الطعام',
     'tl_on_the_way' => 'في الطريق',
     'tl_delivered' => 'تم التوصيل',
 
     // Summary
-    'from_restaurant' => 'من :name',
+    'from_sender' => 'من :name',
     'hello' => 'مرحباً،',
     'delivering_to' => 'التوصيل إلى:',
     'delivery_fee_label' => 'رسوم التوصيل:',
@@ -72,4 +72,6 @@ return [
 
     // Language switch
     'switch_lang' => 'English',
+    'package_items' => 'عناصر الطرد',
+    'total_value' => 'القيمة الإجمالية',
 ];

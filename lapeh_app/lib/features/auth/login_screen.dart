@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/app_state.dart';
@@ -14,7 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  bool isRestaurant = true;
+  bool isSender = true;
   bool _loading = false;
   String? _error;
 
@@ -48,7 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final driver = !isRestaurant;
+    final driver = !isSender;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -102,9 +103,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ? const Center(child: CircularProgressIndicator(color: AppColors.pink))
                   : LapehButton(label: tr('sign_in'), icon: Icons.arrow_forward, onPressed: _signIn),
               const SizedBox(height: 18),
-              _RolePills(isRestaurant: isRestaurant, onChanged: (v) => setState(() => isRestaurant = v)),
+              _RolePills(isSender: isSender, onChanged: (v) => setState(() => isSender = v)),
               const SizedBox(height: 14),
-              Text(tr('role_hint'), textAlign: TextAlign.center, style: T.mutedSm.copyWith(color: AppColors.slate2)),
+              if (isSender)
+                Center(
+                  child: TextButton(
+                    onPressed: () => context.push('/signup'),
+                    child: Text.rich(TextSpan(children: [
+                      TextSpan(text: '${tr('no_account')} ', style: T.mutedSm),
+                      TextSpan(text: tr('sign_up'), style: const TextStyle(color: AppColors.pink, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                    ])),
+                  ),
+                )
+              else
+                Text(tr('role_hint'), textAlign: TextAlign.center, style: T.mutedSm.copyWith(color: AppColors.slate2)),
             ],
           ),
         ),
@@ -114,16 +126,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 }
 
 class _RolePills extends StatelessWidget {
-  final bool isRestaurant;
+  final bool isSender;
   final ValueChanged<bool> onChanged;
-  const _RolePills({required this.isRestaurant, required this.onChanged});
+  const _RolePills({required this.isSender, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      _pill(tr('restaurant'), Icons.storefront_outlined, isRestaurant, () => onChanged(true)),
+      _pill(tr('sender'), Icons.storefront_outlined, isSender, () => onChanged(true)),
       const SizedBox(width: 8),
-      _pill(tr('driver'), Icons.pedal_bike, !isRestaurant, () => onChanged(false)),
+      _pill(tr('driver'), Icons.pedal_bike, !isSender, () => onChanged(false)),
     ]);
   }
 

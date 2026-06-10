@@ -8,5 +8,4 @@ class Zone extends Model
     use HasFactory;
     protected $fillable = ['name','polygon','base_fee','per_km_fee','status'];
     protected function casts(): array { return ['polygon' => 'array', 'base_fee' => 'float', 'per_km_fee' => 'float']; }
-    public function restaurants() { return $this->hasMany(Restaurant::class); }
 }

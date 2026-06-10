@@ -40,7 +40,7 @@ class DriverController extends Controller
         ]);
 
         $activeOrder = Order::where('driver_id', $driver->id)
-            ->whereIn('status', ['driver_assigned', 'arrived_at_restaurant', 'picked_up', 'on_the_way'])
+            ->whereIn('status', ['driver_assigned', 'arrived_at_pickup', 'picked_up', 'on_the_way'])
             ->first();
 
         broadcast(new DriverLocationUpdated($driver, $activeOrder));
@@ -54,7 +54,7 @@ class DriverController extends Controller
 
         $offer = DeliveryOffer::where('driver_id', $driver->id)
             ->where('status', 'offered')
-            ->with(['order.restaurant'])
+            ->with(['order.sender'])
             ->latest()
             ->first();
 
@@ -63,18 +63,18 @@ class DriverController extends Controller
         }
 
         $settings = \App\Models\PricingSetting::current();
-        $restaurant = $offer->order->restaurant;
+        $order = $offer->order;
 
         return response()->json([
             'offer' => [
                 'id' => $offer->id,
-                'order_no' => $offer->order->order_no,
-                'restaurant_name' => $restaurant->name,
-                'restaurant_lat' => $restaurant->lat,
-                'restaurant_lng' => $restaurant->lng,
-                'restaurant_address' => $restaurant->address,
-                'delivery_fee' => $offer->order->delivery_fee,
-                'distance_km' => $offer->order->distance_km,
+                'order_no' => $order->order_no,
+                'pickup_name' => $order->sender?->displayName(),
+                'pickup_lat' => $order->pickup_lat,
+                'pickup_lng' => $order->pickup_lng,
+                'pickup_address' => $order->pickup_address,
+                'delivery_fee' => $order->delivery_fee,
+                'distance_km' => $order->distance_km,
                 'timeout_sec' => $settings->request_timeout_sec,
                 'offered_at' => $offer->offered_at,
             ],
@@ -96,7 +96,7 @@ class DriverController extends Controller
 
         return response()->json([
             'message' => 'Offer accepted.',
-            'order' => $this->activeOrderPayload($order->fresh(['restaurant'])),
+            'order' => $this->activeOrderPayload($order->fresh(['sender'])),
         ]);
     }
 
@@ -121,8 +121,8 @@ class DriverController extends Controller
         $driver = $request->user()->driver;
 
         $order = Order::where('driver_id', $driver->id)
-            ->whereIn('status', ['driver_assigned', 'arrived_at_restaurant', 'picked_up', 'on_the_way'])
-            ->with(['restaurant', 'statusLogs'])
+            ->whereIn('status', ['driver_assigned', 'arrived_at_pickup', 'picked_up', 'on_the_way'])
+            ->with(['sender', 'statusLogs', 'items'])
             ->first();
 
         return response()->json([
@@ -136,12 +136,12 @@ class DriverController extends Controller
         abort_unless($order->driver_id === $driver->id, 403);
 
         $request->validate([
-            'status' => 'required|in:arrived_at_restaurant,picked_up,on_the_way',
+            'status' => 'required|in:arrived_at_pickup,picked_up,on_the_way',
         ]);
 
         $transitions = [
-            'arrived_at_restaurant' => ['driver_assigned'],
-            'picked_up' => ['arrived_at_restaurant'],
+            'arrived_at_pickup' => ['driver_assigned'],
+            'picked_up' => ['arrived_at_pickup'],
             'on_the_way' => ['picked_up'],
         ];
 
@@ -159,7 +159,7 @@ class DriverController extends Controller
             'actor' => $request->user()->id,
         ]);
 
-        broadcast(new OrderStatusUpdated($order->fresh(['driver', 'restaurant'])));
+        broadcast(new OrderStatusUpdated($order->fresh(['driver', 'sender'])));
 
         ActivityLog::record('order.status_updated', $order, [
             'order_no' => $order->order_no,
@@ -212,7 +212,7 @@ class DriverController extends Controller
 
         $driver->update(['status' => 'online']);
 
-        broadcast(new OrderStatusUpdated($order->fresh(['driver', 'restaurant'])));
+        broadcast(new OrderStatusUpdated($order->fresh(['driver', 'sender'])));
 
         ActivityLog::record('order.delivered', $order, [
             'order_no' => $order->order_no,
@@ -235,7 +235,7 @@ class DriverController extends Controller
 
         $history = Order::where('driver_id', $driver->id)
             ->where('status', 'delivered')
-            ->with(['restaurant'])
+            ->with(['sender.user'])
             ->orderByDesc('delivered_at')
             ->paginate(20);
 
@@ -243,7 +243,7 @@ class DriverController extends Controller
             'today' => round($todayEarnings, 2),
             'history' => $history->through(fn($o) => [
                 'order_no' => $o->order_no,
-                'restaurant' => $o->restaurant->name,
+                'sender' => $o->sender?->displayName(),
                 'area' => $o->customer_address,
                 'earning' => $o->delivery_fee,
                 'delivered_at' => $o->delivered_at,
@@ -267,11 +267,19 @@ class DriverController extends Controller
             'order_value' => $order->order_value,
             'delivery_fee' => $order->delivery_fee,
             'distance_km' => $order->distance_km,
-            'restaurant_name' => $order->restaurant->name,
-            'restaurant_lat' => $order->restaurant->lat,
-            'restaurant_lng' => $order->restaurant->lng,
-            'restaurant_address' => $order->restaurant->address,
-            'restaurant_phone' => $order->restaurant->phone,
+            // Pickup details (was restaurant) the driver navigates to first.
+            'pickup_name' => $order->sender?->displayName(),
+            'pickup_lat' => $order->pickup_lat,
+            'pickup_lng' => $order->pickup_lng,
+            'pickup_address' => $order->pickup_address,
+            'pickup_phone' => $order->sender?->user?->phone,
+            'items' => $order->relationLoaded('items') ? $order->items->map(fn($i) => [
+                'name' => $i->name,
+                'quantity' => $i->quantity,
+                'unit_price' => (float) $i->unit_price,
+                'total_price' => (float) $i->total_price,
+                'description' => $i->description,
+            ])->all() : [],
             'created_at' => $order->created_at,
         ];
     }
