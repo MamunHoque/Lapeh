@@ -13,9 +13,18 @@ class EarningsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final earningsAsync = ref.watch(earningsProvider);
 
-    return earningsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.pink)),
-      error: (e, _) => Center(child: Text('${tr('error_prefix')}: $e', style: T.muted)),
+    return RefreshIndicator(
+      color: AppColors.pink,
+      onRefresh: () => ref.read(earningsProvider.notifier).refresh(),
+      child: earningsAsync.when(
+      loading: () => ListView(children: const [
+        SizedBox(height: 240),
+        Center(child: CircularProgressIndicator(color: AppColors.pink)),
+      ]),
+      error: (e, _) => ListView(children: [
+        const SizedBox(height: 180),
+        ErrorRetry(error: e, onRetry: () => ref.read(earningsProvider.notifier).refresh()),
+      ]),
       data: (e) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
@@ -66,6 +75,7 @@ class EarningsScreen extends ConsumerWidget {
             }),
           ],
         ],
+      ),
       ),
     );
   }

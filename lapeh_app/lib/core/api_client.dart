@@ -1,6 +1,41 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'constants.dart';
+import 'i18n.dart';
+
+/// Human-readable message for any thrown API error.
+/// Prefers Laravel's first validation error / `message`, falls back to
+/// localized network/server strings — never shows raw DioException text.
+String apiErrorMessage(Object e) {
+  if (e is DioException) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+        return tr('err_network');
+      default:
+        break;
+    }
+    final res = e.response;
+    if (res != null) {
+      final data = res.data;
+      if (data is Map) {
+        final errors = data['errors'];
+        if (errors is Map && errors.isNotEmpty) {
+          final first = errors.values.first;
+          if (first is List && first.isNotEmpty) return first.first.toString();
+        }
+        final msg = data['message'];
+        if (msg is String && msg.isNotEmpty && msg != 'Unauthenticated.') return msg;
+      }
+      final code = res.statusCode ?? 0;
+      if (code == 401) return tr('err_unauthorized');
+      if (code >= 500) return tr('err_server');
+    }
+  }
+  return tr('err_generic');
+}
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._();
@@ -22,7 +57,11 @@ class ApiClient {
         return handler.next(options);
       },
       onError: (error, handler) {
-        // 401 → token expired; callers handle navigation
+        // Expired/invalid token: drop it so next launch lands on login.
+        final path = error.requestOptions.path;
+        if (error.response?.statusCode == 401 && !path.contains('/auth/login')) {
+          _storage.delete(key: AppStrings.tokenKey);
+        }
         return handler.next(error);
       },
     ));

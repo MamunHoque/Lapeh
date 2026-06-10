@@ -13,9 +13,18 @@ class TripsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final earningsAsync = ref.watch(earningsProvider);
 
-    return earningsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.pink)),
-      error: (e, _) => Center(child: Text('${tr('error_prefix')}: $e', style: T.muted)),
+    return RefreshIndicator(
+      color: AppColors.pink,
+      onRefresh: () => ref.read(earningsProvider.notifier).refresh(),
+      child: earningsAsync.when(
+      loading: () => ListView(children: const [
+        SizedBox(height: 240),
+        Center(child: CircularProgressIndicator(color: AppColors.pink)),
+      ]),
+      error: (e, _) => ListView(children: [
+        const SizedBox(height: 180),
+        ErrorRetry(error: e, onRetry: () => ref.read(earningsProvider.notifier).refresh()),
+      ]),
       data: (e) {
         final trips = e.history;
         return ListView(
@@ -26,12 +35,7 @@ class TripsScreen extends ConsumerWidget {
             Text('${tr('today')} · ${trips.length} ${tr('completed_label')}', style: T.muted),
             const SizedBox(height: 14),
             if (trips.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text(tr('no_trips'), style: const TextStyle(color: AppColors.slate)),
-                ),
-              )
+              EmptyState(message: tr('no_trips'), icon: Icons.pedal_bike)
             else
               ...trips.map((t) {
                 final trip = t as Map<String, dynamic>;
@@ -64,6 +68,7 @@ class TripsScreen extends ConsumerWidget {
           ],
         );
       },
+      ),
     );
   }
 }

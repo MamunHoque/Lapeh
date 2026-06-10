@@ -12,6 +12,18 @@ return [
     'or_use_gps' => 'أو استخدم تحديد الموقع GPS',
     'use_current_location' => '📍 استخدم موقعي الحالي',
     'confirm_location_btn' => 'تأكيد الموقع ←',
+    'search_address' => 'ابحث عن عنوانك',
+    'pin_hint' => 'اسحب الدبوس أو انقر على الخريطة لتحديد موقعك بدقة.',
+    'pick_on_map' => 'حدّد الموقع على الخريطة أولاً',
+    'address_details' => 'تفاصيل عنوان التوصيل',
+    'emirate' => 'الإمارة',
+    'select_emirate' => 'اختر الإمارة',
+    'area_community' => 'المنطقة / الحي',
+    'street_road' => 'الشارع / الطريق',
+    'building_villa' => 'اسم ورقم المبنى / الفيلا',
+    'floor_apt' => 'الطابق / الشقة',
+    'landmark' => 'معلم قريب',
+    'optional' => 'اختياري',
 
     // Payment
     'pay_title' => 'ادفع رسوم التوصيل',

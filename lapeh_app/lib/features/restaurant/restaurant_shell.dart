@@ -17,11 +17,11 @@ class _RestaurantShellState extends State<RestaurantShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = const [
+    const pages = [
       DashboardScreen(),
       DeliveriesScreen(),
       ReportsScreen(),
-      ProfileScreen(name: 'Al Safadi', subtitle: 'Restaurant · Jumeirah'),
+      ProfileScreen(),
     ];
     return Scaffold(
       body: SafeArea(bottom: false, child: IndexedStack(index: index, children: pages)),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/app_state.dart';
+import '../../core/api_client.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../shared/widgets.dart';
 
@@ -31,7 +32,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final phone = _phoneCtrl.text.trim();
     final pass = _passCtrl.text;
     if (phone.isEmpty || pass.isEmpty) {
-      setState(() => _error = 'Enter phone and password');
+      setState(() => _error = tr('error_phone_pass'));
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -39,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authProvider.notifier).login(phone, pass);
       // GoRouter redirect will navigate based on role
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = apiErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

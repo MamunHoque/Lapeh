@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/models/order_model.dart';
+import '../../core/status_meta.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/restaurant_provider.dart';
 import '../../shared/widgets.dart';
@@ -21,8 +22,14 @@ class DashboardScreen extends ConsumerWidget {
       color: AppColors.pink,
       onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
       child: dashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.pink)),
-        error: (e, _) => Center(child: Text('${tr('error_prefix')}: $e', style: T.muted)),
+        loading: () => ListView(children: const [
+          SizedBox(height: 240),
+          Center(child: CircularProgressIndicator(color: AppColors.pink)),
+        ]),
+        error: (e, _) => ListView(children: [
+          const SizedBox(height: 180),
+          ErrorRetry(error: e, onRetry: () => ref.read(dashboardProvider.notifier).refresh()),
+        ]),
         data: (data) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
           children: [
@@ -109,7 +116,7 @@ class _DeliveryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOnWay = order.status == 'on_the_way' || order.status == 'picked_up';
-    final isPending = order.status == 'waiting_for_location' || order.status == 'waiting_payment';
+    final isPending = customerPendingStatuses.contains(order.status);
     final icon = isOnWay
         ? Icons.pedal_bike
         : isPending
@@ -146,6 +153,7 @@ class _DeliveryRow extends StatelessWidget {
               ],
             ),
           ),
+          if (order.customerLink != null) CopyLinkIcon(link: order.customerLink!),
           StatusBadge(status: order.status),
         ]),
       ),

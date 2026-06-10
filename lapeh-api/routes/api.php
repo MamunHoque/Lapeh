@@ -45,6 +45,7 @@ Route::middleware(['auth:sanctum', 'role:restaurant'])->prefix('restaurant')->gr
     Route::post('orders/{order}/cancel', [RestaurantController::class, 'cancelOrder']);
     Route::post('orders/{order}/rate-driver', [RestaurantController::class, 'rateDriver']);
     Route::get('history', [RestaurantController::class, 'history']);
+    Route::get('reports', [RestaurantController::class, 'reports']);
     Route::post('complaints', [RestaurantController::class, 'createComplaint']);
     Route::get('complaints', [RestaurantController::class, 'listComplaints']);
 });

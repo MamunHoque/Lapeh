@@ -56,7 +56,10 @@
                     <td><span class="sora" style="font-weight:600;font-size:13px;">{{ $order->delivery_fee ? 'AED '.number_format($order->delivery_fee,2) : '—' }}</span></td>
                     <td style="font-size:12px;color:var(--slate-2);">{{ $order->created_at->format('d M, H:i') }}</td>
                     <td>
-                        <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">{{ __('admin.view') }}</a>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            @include('admin.partials.copy-link', ['link' => url('/c/'.$order->location_token), 'iconOnly' => true])
+                            <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">{{ __('admin.view') }}</a>
+                        </div>
                     </td>
                 </tr>
                 @empty

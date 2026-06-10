@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Events\DriverLocationUpdated;
 use App\Events\OrderStatusUpdated;
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\DeliveryOffer;
 use App\Models\DeliveryProof;
 use App\Models\Order;
@@ -20,6 +21,7 @@ class DriverController extends Controller
         $request->validate(['status' => 'required|in:online,offline']);
         $driver = $request->user()->driver;
         $driver->update(['status' => $request->status]);
+        ActivityLog::record("driver.{$request->status}", $driver, ['name' => $request->user()->name]);
         return response()->json(['status' => $driver->status]);
     }
 
@@ -87,6 +89,11 @@ class DriverController extends Controller
 
         $order = app(DispatchService::class)->accept($offer);
 
+        ActivityLog::record('offer.accepted', $order, [
+            'order_no' => $order->order_no,
+            'driver' => $request->user()->name,
+        ]);
+
         return response()->json([
             'message' => 'Offer accepted.',
             'order' => $this->activeOrderPayload($order->fresh(['restaurant'])),
@@ -100,6 +107,11 @@ class DriverController extends Controller
         abort_unless($offer->status === 'offered', 422, 'Offer no longer available.');
 
         app(DispatchService::class)->reject($offer);
+
+        ActivityLog::record('offer.rejected', $offer->order, [
+            'order_no' => $offer->order?->order_no,
+            'driver' => $request->user()->name,
+        ]);
 
         return response()->json(['message' => 'Offer rejected.']);
     }
@@ -149,6 +161,12 @@ class DriverController extends Controller
 
         broadcast(new OrderStatusUpdated($order->fresh(['driver', 'restaurant'])));
 
+        ActivityLog::record('order.status_updated', $order, [
+            'order_no' => $order->order_no,
+            'status' => $request->status,
+            'driver' => $request->user()->name,
+        ]);
+
         return response()->json(['message' => 'Status updated.', 'status' => $order->status]);
     }
 
@@ -195,6 +213,12 @@ class DriverController extends Controller
         $driver->update(['status' => 'online']);
 
         broadcast(new OrderStatusUpdated($order->fresh(['driver', 'restaurant'])));
+
+        ActivityLog::record('order.delivered', $order, [
+            'order_no' => $order->order_no,
+            'driver' => $request->user()->name,
+            'delivery_fee' => (float) $order->delivery_fee,
+        ]);
 
         return response()->json(['message' => 'Delivery confirmed.']);
     }

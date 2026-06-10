@@ -40,6 +40,9 @@ return [
     'view' => 'عرض',
     'edit' => 'تعديل',
     'delete' => 'حذف',
+    'copy_link' => 'نسخ الرابط',
+    'copied' => 'تم النسخ!',
+    'customer_link' => 'رابط العميل',
     'cancel' => 'إلغاء',
     'save_changes' => 'حفظ التغييرات',
     'update' => 'تحديث',
@@ -264,6 +267,16 @@ return [
 
     // Activity log
     'no_activity' => 'لا يوجد نشاط مسجّل',
+    'actor' => 'الفاعل',
+    'ip_address' => 'IP',
+    'details' => 'التفاصيل',
+    'all_actions' => 'كل الإجراءات',
+    'date_from' => 'من',
+    'date_to' => 'إلى',
+    'reset' => 'إعادة تعيين',
+    'results_count' => ':count حدث',
+    'role_customer' => 'عميل',
+    'role_system' => 'النظام',
 
     // Settings
     'system_settings' => 'إعدادات النظام',

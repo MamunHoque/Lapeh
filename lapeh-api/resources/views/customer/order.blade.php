@@ -45,28 +45,86 @@
                 <h2 class="sora" style="font-size:18px;font-weight:700;margin-bottom:4px;">{{ __('customer.confirm_location_title') }}</h2>
                 <p style="font-size:13.5px;color:var(--slate);margin-bottom:20px;">{{ __('customer.confirm_location_sub') }}</p>
 
+                @php
+                    $emirates = ['Dubai','Abu Dhabi','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah'];
+                    $fieldStyle = 'width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;background:#fff;';
+                @endphp
                 <form action="{{ route('customer.confirm', $order->location_token) }}" method="POST" x-ref="locationForm" @submit.prevent="submitLocation">
                     @csrf
-                    <div style="margin-bottom:14px;">
+
+                    {{-- Address search (Google Places autocomplete, UAE-restricted) --}}
+                    <div style="margin-bottom:12px;">
                         <label style="display:block;font-size:12.5px;font-weight:600;color:var(--slate);margin-bottom:6px;">{{ __('customer.your_address') }}</label>
-                        <input type="text" name="address" id="address-input" x-model="address"
-                            placeholder="{{ __('customer.address_placeholder') }}"
-                            style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;">
+                        <input type="text" id="address-search" x-model="searchText"
+                            @keydown.enter.prevent="searchAddress()"
+                            autocomplete="off"
+                            placeholder="{{ __('customer.search_address') }}"
+                            style="{{ $fieldStyle }}">
                     </div>
+
+                    @if(!empty($mapsKey))
+                    {{-- Map: defaults to the customer's current location; drag pin / tap to adjust --}}
+                    <div id="pickmap" style="width:100%;height:220px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-bottom:8px;"></div>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:6px;">{{ __('customer.pin_hint') }}</p>
+                    @endif
+
+                    <button type="button" @click="getGPS()"
+                        style="width:100%;padding:11px;background:var(--blue-s);color:var(--blue);border:none;border-radius:11px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;margin-bottom:6px;">
+                        {{ __('customer.use_current_location') }}
+                    </button>
+                    <div x-show="gpsStatus" style="font-size:13px;color:var(--slate);margin-bottom:8px;" x-text="gpsStatus"></div>
+
+                    {{-- Structured UAE address so the driver can find the exact door --}}
+                    <div style="border-top:1px solid var(--line);margin:14px 0;padding-top:14px;">
+                        <div class="sora" style="font-size:13px;font-weight:700;margin-bottom:12px;">{{ __('customer.address_details') }}</div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:5px;">{{ __('customer.emirate') }}</label>
+                                <select x-model="emirate" style="{{ $fieldStyle }}">
+                                    <option value="">{{ __('customer.select_emirate') }}</option>
+                                    @foreach($emirates as $em)
+                                    <option value="{{ $em }}">{{ $em }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:5px;">{{ __('customer.area_community') }}</label>
+                                <input type="text" x-model="area" style="{{ $fieldStyle }}">
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:5px;">{{ __('customer.street_road') }}</label>
+                            <input type="text" x-model="street" style="{{ $fieldStyle }}">
+                        </div>
+
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:5px;">{{ __('customer.building_villa') }}</label>
+                            <input type="text" x-model="building" style="{{ $fieldStyle }}">
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:5px;">{{ __('customer.floor_apt') }} <span style="color:var(--slate-2);font-weight:500;">({{ __('customer.optional') }})</span></label>
+                                <input type="text" x-model="floorApt" style="{{ $fieldStyle }}">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:5px;">{{ __('customer.landmark') }} <span style="color:var(--slate-2);font-weight:500;">({{ __('customer.optional') }})</span></label>
+                                <input type="text" x-model="landmark" style="{{ $fieldStyle }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="address" :value="composedAddress()">
                     <input type="hidden" name="lat" x-model="lat">
                     <input type="hidden" name="lng" x-model="lng">
 
-                    <div style="margin-bottom:14px;">
-                        <label style="display:block;font-size:12.5px;font-weight:600;color:var(--slate);margin-bottom:6px;">{{ __('customer.or_use_gps') }}</label>
-                        <button type="button" @click="getGPS()"
-                            style="width:100%;padding:12px;background:var(--blue-s);color:var(--blue);border:none;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;">
-                            {{ __('customer.use_current_location') }}
-                        </button>
-                    </div>
-
-                    <div x-show="gpsStatus" style="font-size:13px;color:var(--slate);margin-bottom:14px;" x-text="gpsStatus"></div>
-
-                    <button type="submit" class="btn-primary" :disabled="!address && !lat">{{ __('customer.confirm_location_btn') }}</button>
+                    @if(!empty($mapsKey))
+                    <button type="submit" class="btn-primary" :disabled="!lat" :style="!lat ? 'opacity:.5;' : ''">{{ __('customer.confirm_location_btn') }}</button>
+                    @else
+                    <button type="submit" class="btn-primary" :disabled="!composedAddress() && !lat">{{ __('customer.confirm_location_btn') }}</button>
+                    @endif
                 </form>
             </div>
         </div>
@@ -205,14 +263,144 @@ function orderApp() {
         step: '{{ in_array($order->status, ["waiting_for_location","location_confirmed"]) ? "location" : "track" }}',
         lat: '',
         lng: '',
-        address: '',
         gpsStatus: '',
+        // Structured UAE address fields
+        searchText: '',
+        emirate: '',
+        area: '',
+        street: '',
+        building: '',
+        floorApt: '',
+        landmark: '',
+        _map: null,
+        _marker: null,
+        _geocoder: null,
+        _autocomplete: null,
 
         init() {
+            window._orderApp = this;
             @if(in_array($order->status, ['paid','searching_driver','driver_assigned','arrived_at_restaurant','picked_up','on_the_way']))
             // Poll for status updates every 15s
             setInterval(() => this.pollStatus(), 15000);
             @endif
+        },
+
+        // Compose the full delivery address the driver will see.
+        composedAddress() {
+            const parts = [];
+            if (this.building) parts.push(this.building);
+            if (this.floorApt) parts.push(this.floorApt);
+            if (this.street) parts.push(this.street);
+            if (this.area) parts.push(this.area);
+            if (this.emirate) parts.push(this.emirate);
+            let addr = parts.join(', ');
+            if (this.landmark) addr += (addr ? ' — ' : '') + this.landmark;
+            // Fall back to the searched/geocoded address if no fields filled.
+            return addr || this.searchText || '';
+        },
+
+        // Called by the Google Maps JS callback once the SDK has loaded.
+        initMap() {
+            const el = document.getElementById('pickmap');
+            if (!el || !window.google) return;
+            const fallback = { lat: {{ $order->restaurant->lat ?? 25.2048 }}, lng: {{ $order->restaurant->lng ?? 55.2708 }} };
+            this._geocoder = new google.maps.Geocoder();
+            this._map = new google.maps.Map(el, {
+                center: fallback, zoom: 14, disableDefaultUI: true, gestureHandling: 'greedy',
+            });
+            this._marker = new google.maps.Marker({ map: this._map, draggable: true });
+            this._marker.addListener('dragend', (e) => this.setPin(e.latLng.lat(), e.latLng.lng(), true));
+            this._map.addListener('click', (e) => this.setPin(e.latLng.lat(), e.latLng.lng(), true));
+
+            // Default the pin to the customer's current location.
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => this.setPin(pos.coords.latitude, pos.coords.longitude, true),
+                    () => this.setPin(fallback.lat, fallback.lng, false),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            } else {
+                this.setPin(fallback.lat, fallback.lng, false);
+            }
+
+            // Places Autocomplete on the search field, restricted to the UAE.
+            const input = document.getElementById('address-search');
+            if (input && google.maps.places) {
+                this._autocomplete = new google.maps.places.Autocomplete(input, {
+                    componentRestrictions: { country: 'ae' },
+                    fields: ['geometry', 'formatted_address', 'address_components'],
+                });
+                this._autocomplete.addListener('place_changed', () => {
+                    const place = this._autocomplete.getPlace();
+                    if (!place.geometry) return;
+                    const loc = place.geometry.location;
+                    this.searchText = place.formatted_address || this.searchText;
+                    this.fillComponents(place.address_components);
+                    this.setPin(loc.lat(), loc.lng(), false);
+                    this._map.setZoom(16);
+                });
+            }
+        },
+
+        // Move pin + camera; optionally reverse-geocode to prefill the fields.
+        setPin(lat, lng, reverse) {
+            this.lat = lat;
+            this.lng = lng;
+            const p = { lat: Number(lat), lng: Number(lng) };
+            if (this._map && this._marker) {
+                this._marker.setPosition(p);
+                this._map.panTo(p);
+            }
+            if (reverse && this._geocoder) {
+                this._geocoder.geocode({ location: p }, (res, status) => {
+                    if (status === 'OK' && res[0]) {
+                        this.searchText = res[0].formatted_address;
+                        this.fillComponents(res[0].address_components);
+                    }
+                });
+            }
+        },
+
+        // Auto-fill the structured fields from Google address components.
+        // Location-derived fields (emirate/area/street/building) are OVERWRITTEN
+        // on every new location so they always match the search bar / pin.
+        // Floor/apartment + landmark are left to the customer.
+        fillComponents(components) {
+            if (!components) return;
+            const get = (...types) => {
+                const c = components.find(comp => types.some(t => comp.types.includes(t)));
+                return c ? c.long_name : '';
+            };
+            this.emirate = this.matchEmirate(get('administrative_area_level_1'));
+            this.area = get('sublocality_level_1', 'sublocality', 'neighborhood', 'locality', 'administrative_area_level_2');
+            this.street = get('route');
+            const premise = get('premise', 'street_number');
+            if (premise) this.building = premise; // keep manual entry if Google has none
+        },
+
+        // Map Google's emirate name to our dropdown options ('' if none).
+        matchEmirate(name) {
+            if (!name) return '';
+            const list = ['Dubai','Abu Dhabi','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah'];
+            const n = name.toLowerCase();
+            return list.find(e => n.includes(e.toLowerCase().split(' ')[0])) || '';
+        },
+
+        // Enter key in the search field → geocode the typed text.
+        searchAddress() {
+            if (!this._geocoder || !this.searchText) return;
+            this._geocoder.geocode(
+                { address: this.searchText, componentRestrictions: { country: 'AE' } },
+                (res, status) => {
+                    if (status === 'OK' && res[0]) {
+                        const loc = res[0].geometry.location;
+                        this.searchText = res[0].formatted_address;
+                        this.fillComponents(res[0].address_components);
+                        this.setPin(loc.lat(), loc.lng(), false);
+                        if (this._map) this._map.setZoom(16);
+                    }
+                }
+            );
         },
 
         getGPS() {
@@ -223,9 +411,8 @@ function orderApp() {
             }
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                    this.lat = pos.coords.latitude;
-                    this.lng = pos.coords.longitude;
-                    this.address = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+                    this.setPin(pos.coords.latitude, pos.coords.longitude, true);
+                    if (this._map) this._map.setZoom(16);
                     this.gpsStatus = @json(__('customer.gps_captured'));
                 },
                 () => { this.gpsStatus = @json(__('customer.gps_failed')); }
@@ -235,9 +422,9 @@ function orderApp() {
         async submitLocation() {
             const form = this.$refs.locationForm;
             const data = new FormData(form);
-            if (this.lat) data.set('lat', this.lat);
-            if (this.lng) data.set('lng', this.lng);
-            if (this.address) data.set('address', this.address);
+            data.set('lat', this.lat);
+            data.set('lng', this.lng);
+            data.set('address', this.composedAddress());
 
             const res = await fetch(form.action, { method: 'POST', body: data });
             if (res.ok || res.redirected) {
@@ -256,6 +443,22 @@ function orderApp() {
         }
     }
 }
+
+// Google Maps JS callback → forward to the Alpine component once mounted.
+function lapehInitMap() {
+    if (window._orderApp) {
+        window._orderApp.initMap();
+    } else {
+        // Alpine not ready yet — retry shortly.
+        const t = setInterval(() => {
+            if (window._orderApp) { clearInterval(t); window._orderApp.initMap(); }
+        }, 150);
+    }
+}
 </script>
+@if(!empty($mapsKey) && in_array($order->status, ['waiting_for_location', 'location_confirmed']))
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ $mapsKey }}&libraries=places&callback=lapehInitMap&loading=async"></script>
+@endif
 </body>
 </html>

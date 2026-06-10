@@ -21,6 +21,9 @@ class DriverStatusNotifier extends StateNotifier<String> {
   }
 
   void setOnDelivery() => state = 'on_delivery';
+
+  /// Adopt backend-reported status (from /auth/me) without an API call.
+  void sync(String status) => state = status;
 }
 
 final driverStatusProvider =

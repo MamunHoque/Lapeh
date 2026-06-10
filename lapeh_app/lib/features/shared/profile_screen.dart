@@ -7,10 +7,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../shared/widgets.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  // Legacy params kept for compatibility — real data comes from authProvider
-  final String name;
-  final String subtitle;
-  const ProfileScreen({super.key, required this.name, required this.subtitle});
+  const ProfileScreen({super.key});
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -24,13 +21,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // GoRouter redirect will navigate to /login
   }
 
+  void _toggleLanguage() {
+    setState(toggleLocale);
+    // Persist to backend so SMS to customers use the chosen language.
+    final code = localeNotifier.value.languageCode;
+    ref.read(authProvider.notifier).updateLocale(code).catchError((_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).valueOrNull;
-    final displayName = user?.name ?? widget.name;
-    final displaySub = user != null
-        ? '${user.isDriver ? "Driver" : "Restaurant"} · ${user.phone}'
-        : widget.subtitle;
+    final displayName = user?.name ?? '—';
+    final roleLabel = user == null
+        ? ''
+        : (user.isDriver ? tr('driver') : tr('restaurant'));
+    final displaySub = user != null ? '$roleLabel · ${user.phone}' : '';
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -54,11 +59,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(children: [
             _row(Icons.language, tr('language'),
                 trailing: Text(isArabic ? 'العربية' : 'English', style: T.muted),
-                onTap: () => setState(toggleLocale)),
+                onTap: _toggleLanguage),
             const Divider(height: 1, color: AppColors.line),
-            _row(Icons.notifications_none, 'Notifications', trailing: const Icon(Icons.chevron_right, color: AppColors.slate2)),
+            _row(Icons.notifications_none, tr('notifications'), trailing: const Icon(Icons.chevron_right, color: AppColors.slate2)),
             const Divider(height: 1, color: AppColors.line),
-            _row(Icons.help_outline, 'Help & Support', trailing: const Icon(Icons.chevron_right, color: AppColors.slate2)),
+            _row(Icons.help_outline, tr('help_support'), trailing: const Icon(Icons.chevron_right, color: AppColors.slate2)),
           ]),
         ),
         const SizedBox(height: 16),

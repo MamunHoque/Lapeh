@@ -45,6 +45,7 @@ class AdminWebController extends Controller
         }
 
         Auth::login($user, true);
+        ActivityLog::record('auth.login', $user, ['name' => $user->name, 'portal' => 'admin'], $user);
         return redirect()->route('admin.dashboard');
     }
 
@@ -162,7 +163,7 @@ class AdminWebController extends Controller
             'role' => 'restaurant',
         ]);
 
-        Restaurant::create([
+        $restaurant = Restaurant::create([
             'user_id' => $user->id,
             'name' => $data['name'],
             'name_ar' => $data['name_ar'] ?? null,
@@ -173,6 +174,8 @@ class AdminWebController extends Controller
             'lng' => $data['lng'],
             'zone_id' => $data['zone_id'] ?? null,
         ]);
+
+        ActivityLog::record('restaurant.created', $restaurant, ['name' => $restaurant->name]);
 
         return redirect()->route('admin.restaurants')->with('success', 'Restaurant created.');
     }
@@ -198,11 +201,13 @@ class AdminWebController extends Controller
         ]);
 
         $restaurant->update($data);
+        ActivityLog::record('restaurant.updated', $restaurant, ['name' => $restaurant->name]);
         return redirect()->route('admin.restaurants')->with('success', 'Restaurant updated.');
     }
 
     public function restaurantDestroy(Restaurant $restaurant)
     {
+        ActivityLog::record('restaurant.deleted', $restaurant, ['name' => $restaurant->name]);
         $restaurant->delete();
         return redirect()->route('admin.restaurants')->with('success', 'Restaurant deleted.');
     }
@@ -236,12 +241,14 @@ class AdminWebController extends Controller
         ]);
 
         $user = User::create(['name' => $data['name'], 'phone' => $data['phone'], 'password' => $data['password'], 'role' => 'driver']);
-        Driver::create([
+        $driver = Driver::create([
             'user_id' => $user->id,
             'vehicle_type' => $data['vehicle_type'],
             'vehicle_plate' => $data['vehicle_plate'] ?? null,
             'fleet_id' => $data['fleet_id'] ?? null,
         ]);
+
+        ActivityLog::record('driver.created', $driver, ['name' => $user->name]);
 
         return redirect()->route('admin.drivers')->with('success', 'Driver created.');
     }
@@ -271,11 +278,14 @@ class AdminWebController extends Controller
             $driver->user->update($userUpdate);
         }
 
+        ActivityLog::record('driver.updated', $driver, ['name' => $driver->user->name ?? null]);
+
         return redirect()->route('admin.drivers')->with('success', 'Driver updated.');
     }
 
     public function driverDestroy(Driver $driver)
     {
+        ActivityLog::record('driver.deleted', $driver, ['name' => $driver->user->name ?? null]);
         $driver->delete();
         return redirect()->route('admin.drivers')->with('success', 'Driver deleted.');
     }
@@ -288,12 +298,13 @@ class AdminWebController extends Controller
 
     public function zoneStore(Request $request)
     {
-        Zone::create($request->validate([
+        $zone = Zone::create($request->validate([
             'name' => 'required|string',
             'base_fee' => 'nullable|numeric',
             'per_km_fee' => 'nullable|numeric',
             'status' => 'required|in:active,inactive',
         ]));
+        ActivityLog::record('zone.created', $zone, ['name' => $zone->name]);
         return redirect()->route('admin.zones')->with('success', 'Zone created.');
     }
 
@@ -305,11 +316,13 @@ class AdminWebController extends Controller
             'per_km_fee' => 'nullable|numeric',
             'status' => 'required|in:active,inactive',
         ]));
+        ActivityLog::record('zone.updated', $zone, ['name' => $zone->name]);
         return redirect()->route('admin.zones')->with('success', 'Zone updated.');
     }
 
     public function zoneDestroy(Zone $zone)
     {
+        ActivityLog::record('zone.deleted', $zone, ['name' => $zone->name]);
         $zone->delete();
         return redirect()->route('admin.zones')->with('success', 'Zone deleted.');
     }
@@ -330,7 +343,9 @@ class AdminWebController extends Controller
             'request_timeout_sec' => 'required|integer|min:10',
         ]);
 
-        PricingSetting::current()->update($data);
+        $pricing = PricingSetting::current();
+        $pricing->update($data);
+        ActivityLog::record('pricing.updated', $pricing, $data);
         return redirect()->route('admin.pricing')->with('success', 'Pricing updated.');
     }
 
@@ -370,6 +385,11 @@ class AdminWebController extends Controller
         $complaint->update(array_merge($data, [
             'resolved_by' => $data['status'] === 'resolved' ? Auth::id() : $complaint->resolved_by,
         ]));
+
+        ActivityLog::record('complaint.updated', $complaint, [
+            'status' => $complaint->status,
+            'type' => $complaint->type,
+        ]);
 
         return redirect()->route('admin.complaints.show', $complaint)->with('success', 'Complaint updated.');
     }
@@ -420,10 +440,43 @@ class AdminWebController extends Controller
         return view('admin.sms', compact('templates', 'logs'));
     }
 
-    public function activityLogs()
+    public function activityLogs(Request $request)
     {
-        $logs = ActivityLog::with('user:id,name')->orderByDesc('created_at')->paginate(50);
-        return view('admin.activity-logs', compact('logs'));
+        $query = ActivityLog::with('user:id,name');
+
+        // Free-text search across action, subject, IP and actor name.
+        if ($search = trim((string) $request->query('search'))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'like', "%{$search}%")
+                    ->orWhere('subject_type', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%"));
+                if (ctype_digit($search)) {
+                    $q->orWhere('subject_id', (int) $search);
+                }
+            });
+        }
+
+        if ($action = $request->query('action')) {
+            $query->where('action', $action);
+        }
+        if ($role = $request->query('role')) {
+            $query->where('actor_role', $role);
+        }
+        if ($from = $request->query('from')) {
+            $query->where('created_at', '>=', $from.' 00:00:00');
+        }
+        if ($to = $request->query('to')) {
+            $query->where('created_at', '<=', $to.' 23:59:59');
+        }
+
+        $logs = $query->orderByDesc('created_at')->paginate(40)->withQueryString();
+
+        // Distinct values to populate the filter dropdowns.
+        $actions = ActivityLog::query()->distinct()->orderBy('action')->pluck('action');
+        $roles = ActivityLog::query()->distinct()->whereNotNull('actor_role')->orderBy('actor_role')->pluck('actor_role');
+
+        return view('admin.activity-logs', compact('logs', 'actions', 'roles'));
     }
 
     public function settings()

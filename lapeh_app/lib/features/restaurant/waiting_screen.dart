@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/models/order_model.dart';
 import '../../core/providers/restaurant_provider.dart';
+import '../../core/status_meta.dart';
 import '../../shared/widgets.dart';
 import 'tracking_screen.dart';
 
@@ -34,7 +35,9 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen> {
       if (!mounted) return;
       setState(() => _order = updated);
       // Auto-advance when customer confirms location + pays → go to tracking
-      if (updated.status == 'searching_driver' || updated.status == 'assigned' || updated.status == 'picked_up' || updated.status == 'on_the_way') {
+      if (updated.status == 'paid' ||
+          updated.status == 'searching_driver' ||
+          driverActiveStatuses.contains(updated.status)) {
         _poll?.cancel();
         if (mounted) {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => TrackingScreen(order: updated)));
@@ -76,7 +79,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen> {
     final o = _order;
     bool locDone = o.customerLat != null;
     bool payDone = o.paymentStatus == 'paid';
-    bool dispatchReady = o.status == 'searching_driver' || o.status == 'assigned';
+    bool dispatchReady = o.status == 'searching_driver' || driverActiveStatuses.contains(o.status);
 
     return [
       StatusStep(tr('link_delivered'), 'done'),
@@ -145,29 +148,35 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen> {
               ]),
             ),
             if (o.customerLink != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+              Text(tr('customer_link'),
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.slate)),
+              const SizedBox(height: 6),
               InkWell(
                 onTap: _copyLink,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: const Color(0xFFF4F5F8), borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F5F8),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.line),
+                  ),
                   child: Row(children: [
                     Expanded(
-                      child: Text(o.customerLink!, style: const TextStyle(fontSize: 11, color: AppColors.slate), overflow: TextOverflow.ellipsis),
+                      child: Text(o.customerLink!,
+                          style: const TextStyle(fontSize: 12, color: AppColors.ink),
+                          overflow: TextOverflow.ellipsis),
                     ),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      onPressed: _copyLink,
-                      tooltip: tr('copy_link'),
-                      icon: const Icon(Icons.copy_rounded, size: 16, color: AppColors.slate),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.copy_rounded, size: 17, color: AppColors.pink),
                   ]),
                 ),
               ),
+              const SizedBox(height: 12),
+              LapehButton(label: tr('copy_link'), icon: Icons.copy_rounded, onPressed: _copyLink),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             _resending
                 ? const Center(child: CircularProgressIndicator(color: AppColors.pink))
                 : LapehButton(label: tr('resend_link'), ghost: true, icon: Icons.send_outlined, onPressed: _resend),

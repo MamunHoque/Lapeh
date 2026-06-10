@@ -17,11 +17,11 @@ class _DriverShellState extends State<DriverShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = const [
+    const pages = [
       DriverHomeScreen(),
       TripsScreen(),
       EarningsScreen(),
-      ProfileScreen(name: 'Bilal Hassan', subtitle: 'Driver · D-7841 · ★ 4.9'),
+      ProfileScreen(),
     ];
     return Scaffold(
       body: SafeArea(bottom: false, child: IndexedStack(index: index, children: pages)),

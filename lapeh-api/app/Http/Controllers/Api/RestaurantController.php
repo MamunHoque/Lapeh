@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Complaint;
 use App\Models\ComplaintAttachment;
 use App\Models\DriverRating;
@@ -87,8 +88,14 @@ class RestaurantController extends Controller
             $order->customer_phone,
             'order_created',
             ['link' => $customerLink, 'order_no' => $order->order_no],
-            $request->user()->locale,
+            $request->user()->locale ?? 'en',
         );
+
+        ActivityLog::record('order.created', $order, [
+            'order_no' => $order->order_no,
+            'customer_name' => $order->customer_name,
+            'order_value' => (float) $order->order_value,
+        ]);
 
         return response()->json([
             'order' => $this->orderDetail($order->fresh(['restaurant', 'statusLogs'])),
@@ -133,6 +140,8 @@ class RestaurantController extends Controller
             ['link' => $link, 'order_no' => $order->order_no],
         );
 
+        ActivityLog::record('order.link_resent', $order, ['order_no' => $order->order_no]);
+
         return response()->json(['message' => 'Link resent.', 'customer_link' => $link]);
     }
 
@@ -157,6 +166,11 @@ class RestaurantController extends Controller
         }
 
         broadcast(new \App\Events\OrderStatusUpdated($order));
+
+        ActivityLog::record('order.cancelled', $order, [
+            'order_no' => $order->order_no,
+            'reason' => $data['reason'] ?? null,
+        ]);
 
         return response()->json(['message' => 'Order cancelled.']);
     }
@@ -190,6 +204,12 @@ class RestaurantController extends Controller
         $count = DriverRating::where('driver_id', $driver->id)->count();
         $driver->update(['rating_avg' => round($avg, 2), 'rating_count' => $count]);
 
+        ActivityLog::record('order.rated', $order, [
+            'order_no' => $order->order_no,
+            'rating' => $data['rating'],
+            'driver' => $driver->user->name ?? null,
+        ]);
+
         return response()->json(['rating' => $rating], 201);
     }
 
@@ -205,6 +225,54 @@ class RestaurantController extends Controller
 
         return response()->json([
             'orders' => $orders->through(fn($o) => $this->orderSummary($o)),
+        ]);
+    }
+
+    public function reports(Request $request): JsonResponse
+    {
+        $restaurant = $request->user()->restaurant;
+        $today = now()->startOfDay();
+        $yesterday = now()->subDay()->startOfDay();
+
+        $todayAgg = Order::where('restaurant_id', $restaurant->id)
+            ->where('created_at', '>=', $today)
+            ->selectRaw('
+                COUNT(*) as orders,
+                SUM(CASE WHEN status = "delivered" THEN 1 ELSE 0 END) as delivered,
+                SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) as cancelled,
+                SUM(CASE WHEN status = "delivered" THEN delivery_fee ELSE 0 END) as revenue,
+                AVG(CASE WHEN status = "delivered" THEN delivery_fee ELSE NULL END) as avg_fee
+            ')->first();
+
+        $yesterdayRevenue = Order::where('restaurant_id', $restaurant->id)
+            ->where('status', 'delivered')
+            ->whereBetween('created_at', [$yesterday, $today])
+            ->sum('delivery_fee');
+
+        $recent = Order::where('restaurant_id', $restaurant->id)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->orderByDesc('created_at')
+            ->limit(15)
+            ->get();
+
+        return response()->json([
+            // PDO returns aggregate columns as strings — cast explicitly.
+            'today' => [
+                'orders' => (int) $todayAgg->orders,
+                'delivered' => (int) $todayAgg->delivered,
+                'cancelled' => (int) $todayAgg->cancelled,
+                'revenue' => (float) $todayAgg->revenue,
+                'avg_fee' => (float) ($todayAgg->avg_fee ?? 0),
+            ],
+            'yesterday_revenue' => (float) $yesterdayRevenue,
+            'recent' => $recent->map(fn($o) => [
+                'id' => $o->id,
+                'order_no' => $o->order_no,
+                'customer_name' => $o->customer_name,
+                'status' => $o->status,
+                'delivery_fee' => (float) ($o->delivery_fee ?? 0),
+                'created_at' => $o->created_at,
+            ]),
         ]);
     }
 
@@ -235,6 +303,11 @@ class RestaurantController extends Controller
             }
         }
 
+        ActivityLog::record('complaint.created', $complaint, [
+            'type' => $complaint->type,
+            'restaurant' => $restaurant->name,
+        ]);
+
         return response()->json(['complaint' => $complaint->load('attachments')], 201);
     }
 
@@ -263,6 +336,8 @@ class RestaurantController extends Controller
             'total_amount' => $order->total_amount,
             'order_value' => $order->order_value,
             'distance_km' => $order->distance_km,
+            'location_token' => $order->location_token,
+            'customer_link' => url("/c/{$order->location_token}"),
             'driver' => $order->driver ? [
                 'id' => $order->driver->id,
                 'name' => $order->driver->user->name,
@@ -283,6 +358,9 @@ class RestaurantController extends Controller
             'customer_address' => $order->customer_address,
             'customer_lat' => $order->customer_lat,
             'customer_lng' => $order->customer_lng,
+            'restaurant_name' => $order->restaurant->name,
+            'restaurant_lat' => $order->restaurant->lat,
+            'restaurant_lng' => $order->restaurant->lng,
             'otp_code' => $order->otp_code,
             'assigned_at' => $order->assigned_at,
             'picked_up_at' => $order->picked_up_at,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
+import '../../core/api_client.dart';
 import '../../core/models/order_model.dart';
 import '../../core/providers/driver_provider.dart';
 import '../../core/services/driver_service.dart';
@@ -62,7 +63,7 @@ class _IncomingRequestSheetState extends ConsumerState<_IncomingRequestSheet> wi
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('error_prefix')}: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
         setState(() => _loading = false);
         Navigator.of(context).pop();
         widget.onDone?.call();

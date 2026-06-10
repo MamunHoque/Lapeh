@@ -1,6 +1,90 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/theme.dart';
+import '../core/i18n.dart';
+import '../core/api_client.dart';
 import '../core/status_meta.dart';
+
+/// Copies [link] to the clipboard and shows a confirmation snackbar.
+Future<void> copyLink(BuildContext context, String link) async {
+  await Clipboard.setData(ClipboardData(text: link));
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('link_copied'))));
+  }
+}
+
+/// Compact pink copy-icon button for list rows / cards.
+class CopyLinkIcon extends StatelessWidget {
+  final String link;
+  const CopyLinkIcon({super.key, required this.link});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => copyLink(context, link),
+      tooltip: tr('copy_link'),
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      padding: EdgeInsets.zero,
+      icon: const Icon(Icons.copy_rounded, size: 17, color: AppColors.pink),
+    );
+  }
+}
+
+/// Centered error message with a Retry button — for AsyncValue.error states.
+class ErrorRetry extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+  const ErrorRetry({super.key, required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.slate2),
+            const SizedBox(height: 12),
+            Text(apiErrorMessage(error),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.slate, fontSize: 13.5)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 160,
+              child: LapehButton(label: tr('retry'), icon: Icons.refresh, ghost: true, onPressed: onRetry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Centered empty-state message with an optional icon.
+class EmptyState extends StatelessWidget {
+  final String message;
+  final IconData icon;
+  const EmptyState({super.key, required this.message, this.icon = Icons.inbox_outlined});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 38, color: AppColors.slate2),
+            const SizedBox(height: 10),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.slate)),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Primary gradient button
 class LapehButton extends StatelessWidget {

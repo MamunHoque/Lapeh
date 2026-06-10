@@ -18,6 +18,14 @@
                     {{ $order->created_at->format('d M Y, H:i') }}
                 </div>
             </div>
+            @php($customerLink = url('/c/'.$order->location_token))
+            <div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:200px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">{{ __('admin.customer_link') }}</div>
+                    <a href="{{ $customerLink }}" target="_blank" style="font-size:12.5px;color:var(--pink);text-decoration:none;word-break:break-all;">{{ $customerLink }}</a>
+                </div>
+                @include('admin.partials.copy-link', ['link' => $customerLink])
+            </div>
             <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
                 <div>
                     <div style="font-size:11px;font-weight:700;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">{{ __('admin.restaurant') }}</div>

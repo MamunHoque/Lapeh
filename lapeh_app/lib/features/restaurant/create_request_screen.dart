@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
+import '../../core/api_client.dart';
 import '../../core/providers/restaurant_provider.dart';
 import '../../shared/widgets.dart';
 import 'waiting_screen.dart';
+
+/// Accepts +, digits, spaces, dashes; needs 7–15 digits total.
+bool _isValidPhone(String s) {
+  final digits = s.replaceAll(RegExp(r'[^0-9]'), '');
+  return digits.length >= 7 && digits.length <= 15 && RegExp(r'^\+?[0-9 \-]+$').hasMatch(s);
+}
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
   const CreateRequestScreen({super.key});
@@ -37,9 +44,18 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
       setState(() => _error = tr('error_fields'));
       return;
     }
+    if (!_isValidPhone(phone)) {
+      setState(() => _error = tr('error_phone_format'));
+      return;
+    }
     final value = double.tryParse(valueStr);
     if (value == null || value <= 0) {
       setState(() => _error = tr('error_value'));
+      return;
+    }
+    final prepStr = _prepCtrl.text.trim();
+    if (prepStr.isNotEmpty && int.tryParse(prepStr) == null) {
+      setState(() => _error = tr('error_prep_time'));
       return;
     }
 
@@ -49,11 +65,11 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
         customerName: name,
         customerPhone: phone,
         orderValue: value,
-        prepTimeMin: int.tryParse(_prepCtrl.text.trim()),
+        prepTimeMin: int.tryParse(prepStr),
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
       if (!mounted) return;
-      // Invalidate orders so list refreshes
+      // Invalidate lists so they refetch with the new order
       ref.invalidate(dashboardProvider);
       ref.invalidate(ordersProvider(null));
       Navigator.pushReplacement(
@@ -61,7 +77,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
         MaterialPageRoute(builder: (_) => WaitingScreen(order: result.order)),
       );
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = apiErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

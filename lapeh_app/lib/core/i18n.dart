@@ -5,6 +5,12 @@ String tr(String key) {
   return (_strings[lang]?[key]) ?? _strings['en']![key] ?? key;
 }
 
+/// tr() with explicit fallback instead of echoing the key.
+String trOr(String key, String fallback) {
+  final lang = localeNotifier.value.languageCode;
+  return (_strings[lang]?[key]) ?? _strings['en']![key] ?? fallback;
+}
+
 const Map<String, Map<String, String>> _strings = {
   'en': {
     // Auth
@@ -56,6 +62,7 @@ const Map<String, Map<String, String>> _strings = {
     'resend_link': 'Resend link',
     'copy_link': 'Copy link',
     'link_copied': 'Link copied',
+    'customer_link': 'Customer link',
     'live_tracking': 'Live tracking',
     'delivery_fee': 'Delivery fee',
 
@@ -154,6 +161,45 @@ const Map<String, Map<String, String>> _strings = {
     'dropoff': 'Drop-off',
     'reject': 'Reject',
     'accept': 'Accept',
+
+    // Backend order statuses (badge + timeline labels)
+    'st_created': 'Created',
+    'st_waiting_for_location': 'Awaiting location',
+    'st_location_confirmed': 'Location confirmed',
+    'st_waiting_for_payment': 'Awaiting payment',
+    'st_paid': 'Paid',
+    'st_searching_driver': 'Searching driver',
+    'st_driver_assigned': 'Driver assigned',
+    'st_arrived_at_restaurant': 'At restaurant',
+    'st_picked_up': 'Picked up',
+    'st_on_the_way': 'On the way',
+    'st_delivered': 'Delivered',
+    'st_cancelled': 'Cancelled',
+
+    // API errors
+    'err_network': 'No connection. Check your internet and try again.',
+    'err_unauthorized': 'Session expired or wrong credentials.',
+    'err_server': 'Server error. Please try again shortly.',
+    'err_generic': 'Something went wrong. Please try again.',
+    'retry': 'Retry',
+
+    // Location / maps
+    'enable_location': 'Enable location',
+    'open_settings': 'Open settings',
+    'location_denied_forever': 'Location permission is blocked. Enable it in app settings.',
+
+    // Validation
+    'error_phone_format': 'Enter a valid phone number',
+    'error_prep_time': 'Prep time must be a whole number of minutes',
+
+    // Reports
+    'revenue_today': 'Delivery revenue · today',
+    'vs_yesterday': 'vs yesterday',
+    'orders_label': 'Orders',
+    'completed': 'Completed',
+    'avg_fee': 'Avg fee',
+    'recent': 'Recent',
+    'no_recent': 'No orders in the last 7 days',
   },
   'ar': {
     // Auth
@@ -205,6 +251,7 @@ const Map<String, Map<String, String>> _strings = {
     'resend_link': 'إعادة إرسال الرابط',
     'copy_link': 'نسخ الرابط',
     'link_copied': 'تم نسخ الرابط',
+    'customer_link': 'رابط العميل',
     'live_tracking': 'تتبع مباشر',
     'delivery_fee': 'رسوم التوصيل',
 
@@ -303,5 +350,44 @@ const Map<String, Map<String, String>> _strings = {
     'dropoff': 'التسليم',
     'reject': 'رفض',
     'accept': 'قبول',
+
+    // Backend order statuses (badge + timeline labels)
+    'st_created': 'تم الإنشاء',
+    'st_waiting_for_location': 'بانتظار الموقع',
+    'st_location_confirmed': 'تم تأكيد الموقع',
+    'st_waiting_for_payment': 'بانتظار الدفع',
+    'st_paid': 'مدفوع',
+    'st_searching_driver': 'البحث عن سائق',
+    'st_driver_assigned': 'تم تعيين سائق',
+    'st_arrived_at_restaurant': 'في المطعم',
+    'st_picked_up': 'تم الاستلام',
+    'st_on_the_way': 'في الطريق',
+    'st_delivered': 'تم التوصيل',
+    'st_cancelled': 'ملغي',
+
+    // API errors
+    'err_network': 'لا يوجد اتصال. تحقق من الإنترنت وحاول مجددًا.',
+    'err_unauthorized': 'انتهت الجلسة أو البيانات غير صحيحة.',
+    'err_server': 'خطأ في الخادم. حاول بعد قليل.',
+    'err_generic': 'حدث خطأ ما. حاول مجددًا.',
+    'retry': 'إعادة المحاولة',
+
+    // Location / maps
+    'enable_location': 'تفعيل الموقع',
+    'open_settings': 'فتح الإعدادات',
+    'location_denied_forever': 'إذن الموقع محظور. فعّله من إعدادات التطبيق.',
+
+    // Validation
+    'error_phone_format': 'أدخل رقم هاتف صحيح',
+    'error_prep_time': 'وقت التحضير يجب أن يكون عددًا صحيحًا بالدقائق',
+
+    // Reports
+    'revenue_today': 'إيرادات التوصيل · اليوم',
+    'vs_yesterday': 'مقارنة بالأمس',
+    'orders_label': 'الطلبات',
+    'completed': 'مكتملة',
+    'avg_fee': 'متوسط الرسوم',
+    'recent': 'الأحدث',
+    'no_recent': 'لا توجد طلبات في آخر 7 أيام',
   },
 };

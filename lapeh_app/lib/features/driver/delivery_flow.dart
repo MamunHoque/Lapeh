@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme.dart';
+import '../../core/api_client.dart';
 import '../../core/i18n.dart';
 import '../../core/models/order_model.dart';
 import '../../core/providers/driver_provider.dart';
@@ -25,6 +26,25 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
   int step = 0;
   bool _loading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Resume mid-delivery after app restart — backend rejects out-of-order
+    // transitions, so the step must match the order's actual status.
+    step = switch (widget.order.status) {
+      'arrived_at_restaurant' => 1,
+      'picked_up' || 'on_the_way' => 2,
+      'delivered' => 4,
+      _ => 0,
+    };
+    if (widget.order.status == 'picked_up') {
+      // Trip resumed: mark on_the_way so customer tracking moves forward.
+      DriverService()
+          .updateOrderStatus(widget.order.id, 'on_the_way')
+          .catchError((_) {});
+    }
+  }
+
   Future<void> _advance(String status) async {
     setState(() => _loading = true);
     try {
@@ -32,7 +52,24 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
       setState(() { step++; _loading = false; });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('error_prefix')}: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  /// Pickup confirm: picked_up then on_the_way in one tap — the trip starts
+  /// immediately, and customer tracking shows "on the way" right away.
+  Future<void> _pickupAndGo() async {
+    setState(() => _loading = true);
+    try {
+      final svc = DriverService();
+      await svc.updateOrderStatus(widget.order.id, 'picked_up');
+      await svc.updateOrderStatus(widget.order.id, 'on_the_way');
+      setState(() { step = 2; _loading = false; });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
         setState(() => _loading = false);
       }
     }
@@ -59,7 +96,7 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
           onCta: () => _advance('arrived_at_restaurant'),
         );
       case 1:
-        return _PickupScreen(order: o, onNext: () => _advance('picked_up'));
+        return _PickupScreen(order: o, onNext: _pickupAndGo);
       case 2:
         return _NavScreen(
           title: tr('to_customer'),
@@ -403,6 +440,9 @@ class _OtpScreenState extends ConsumerState<_OtpScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
           child: Column(children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(children: [
             Container(
               width: 54, height: 54,
               decoration: BoxDecoration(color: AppColors.pinkSoft, borderRadius: BorderRadius.circular(16)),
@@ -460,7 +500,10 @@ class _OtpScreenState extends ConsumerState<_OtpScreen> {
                   ]),
                 ),
               ),
-            const Spacer(),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 12),
             _loading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.pink))
                 : LapehButton(
@@ -527,7 +570,7 @@ class _DeliveredScreen extends ConsumerWidget {
               width: 84, height: 84,
               decoration: BoxDecoration(
                 color: AppColors.green, shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.greenSoft, spreadRadius: 12)],
+                boxShadow: const [BoxShadow(color: AppColors.greenSoft, spreadRadius: 12)],
               ),
               child: const Icon(Icons.check, color: Colors.white, size: 42),
             ),

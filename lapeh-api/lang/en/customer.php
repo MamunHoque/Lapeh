@@ -12,6 +12,18 @@ return [
     'or_use_gps' => 'Or use GPS location',
     'use_current_location' => '📍 Use My Current Location',
     'confirm_location_btn' => 'Confirm Location →',
+    'search_address' => 'Search for your address',
+    'pin_hint' => 'Drag the pin or tap the map to set your exact location.',
+    'pick_on_map' => 'Pick location on map first',
+    'address_details' => 'Delivery address details',
+    'emirate' => 'Emirate',
+    'select_emirate' => 'Select emirate',
+    'area_community' => 'Area / Community',
+    'street_road' => 'Street / Road',
+    'building_villa' => 'Building / Villa name & number',
+    'floor_apt' => 'Floor / Apartment',
+    'landmark' => 'Nearby landmark',
+    'optional' => 'optional',
 
     // Payment
     'pay_title' => 'Pay for Delivery',

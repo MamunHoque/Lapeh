@@ -218,3 +218,60 @@ class DashboardStats {
         revenue: asDouble(j['revenue']) ?? 0,
       );
 }
+
+class ReportData {
+  final int orders, delivered, cancelled;
+  final double revenue, avgFee, yesterdayRevenue;
+  final List<ReportRow> recent;
+
+  const ReportData({
+    required this.orders,
+    required this.delivered,
+    required this.cancelled,
+    required this.revenue,
+    required this.avgFee,
+    required this.yesterdayRevenue,
+    required this.recent,
+  });
+
+  /// Percent change in today's revenue vs yesterday; null when no baseline.
+  double? get revenueDeltaPct {
+    if (yesterdayRevenue <= 0) return null;
+    return (revenue - yesterdayRevenue) / yesterdayRevenue * 100;
+  }
+
+  factory ReportData.fromJson(Map<String, dynamic> j) {
+    final today = (j['today'] as Map?) ?? const {};
+    return ReportData(
+      orders: asInt(today['orders']) ?? 0,
+      delivered: asInt(today['delivered']) ?? 0,
+      cancelled: asInt(today['cancelled']) ?? 0,
+      revenue: asDouble(today['revenue']) ?? 0,
+      avgFee: asDouble(today['avg_fee']) ?? 0,
+      yesterdayRevenue: asDouble(j['yesterday_revenue']) ?? 0,
+      recent: (j['recent'] as List? ?? []).map((e) => ReportRow.fromJson(e)).toList(),
+    );
+  }
+}
+
+class ReportRow {
+  final int id;
+  final String orderNo, customerName, status;
+  final double deliveryFee;
+
+  const ReportRow({
+    required this.id,
+    required this.orderNo,
+    required this.customerName,
+    required this.status,
+    required this.deliveryFee,
+  });
+
+  factory ReportRow.fromJson(Map<String, dynamic> j) => ReportRow(
+        id: j['id'],
+        orderNo: j['order_no'] ?? '',
+        customerName: j['customer_name'] ?? '',
+        status: j['status'] ?? '',
+        deliveryFee: asDouble(j['delivery_fee']) ?? 0,
+      );
+}

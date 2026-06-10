@@ -28,8 +28,9 @@ class CustomerController extends Controller
         session(['customer_locale' => $locale]);
         app()->setLocale($locale);
         $rtl = $locale === 'ar';
+        $mapsKey = config('services.google_maps.key');
 
-        return view('customer.order', compact('order', 'locale', 'rtl'));
+        return view('customer.order', compact('order', 'locale', 'rtl', 'mapsKey'));
     }
 
     public function confirmLocation(Request $request, string $token)
@@ -73,6 +74,12 @@ class CustomerController extends Controller
         ]);
 
         broadcast(new OrderStatusUpdated($order->fresh()));
+
+        \App\Models\ActivityLog::record('order.location_confirmed', $order, [
+            'order_no' => $order->order_no,
+            'address' => $address,
+            'distance_km' => (float) $feeData['distance_km'],
+        ], null, 'customer');
 
         if (request()->wantsJson()) {
             return response()->json([
@@ -123,6 +130,12 @@ class CustomerController extends Controller
 
             broadcast(new OrderStatusUpdated($order->fresh()));
             app(DispatchService::class)->dispatch($order);
+
+            \App\Models\ActivityLog::record('order.paid', $order, [
+                'order_no' => $order->order_no,
+                'amount' => (float) $order->total_amount,
+                'gateway' => 'sandbox',
+            ], null, 'customer');
 
             if (request()->wantsJson()) {
                 return response()->json(['status' => 'paid', 'message' => 'Sandbox payment accepted.']);

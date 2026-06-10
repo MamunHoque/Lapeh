@@ -41,7 +41,9 @@ BROADCAST_CONNECTION=reverb
 
 # Client-owned third-party credentials (see §6)
 GOOGLE_MAPS_API_KEY=...
-FCM_SERVER_KEY=...
+# FCM HTTP v1 — path to the service-account JSON + project id (NOT the legacy server key)
+FIREBASE_CREDENTIALS=storage/app/firebase/service-account.json
+FIREBASE_PROJECT_ID=lapeh-51e34
 PAYMENT_GATEWAY=...
 PAYMENT_KEY=...
 PAYMENT_SECRET=...
@@ -130,9 +132,13 @@ All third-party accounts must be registered under the client's own credentials.
 - [ ] **Google Cloud** — Maps SDK (Android/iOS), Directions, Distance Matrix,
       Geocoding API keys → `GOOGLE_MAPS_API_KEY` + `AndroidManifest.xml` +
       `AppDelegate.swift`
-- [ ] **Firebase** — Android + iOS apps, FCM server key,
-      `google-services.json` (`android/app/`) + `GoogleService-Info.plist`
-      (`ios/Runner/`)
+- [ ] **Firebase** — Android + iOS apps + client configs `google-services.json`
+      (`android/app/`) and `GoogleService-Info.plist` (`ios/Runner/`). For
+      backend push, generate a **service-account JSON** (Project Settings →
+      Service accounts → Generate new private key) and place it at
+      `storage/app/firebase/service-account.json` (git-ignored) →
+      `FIREBASE_CREDENTIALS`. The legacy FCM server key is **not** used (Google
+      retired it June 2024); the backend uses the HTTP v1 API.
 - [ ] **Payment gateway** — merchant account → `PAYMENT_KEY`, `PAYMENT_SECRET`,
       `PAYMENT_WEBHOOK_SECRET`; register webhook URL `https://api.your-domain.com/api/webhooks/payment`
 - [ ] **SMS / WhatsApp provider** (Twilio or UAE provider) → credentials,

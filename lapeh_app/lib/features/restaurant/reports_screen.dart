@@ -1,16 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
+import '../../core/i18n.dart';
+import '../../core/models/order_model.dart';
+import '../../core/providers/restaurant_provider.dart';
 import '../../shared/widgets.dart';
+import 'tracking_screen.dart';
 
-class ReportsScreen extends StatelessWidget {
+class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportsAsync = ref.watch(reportsProvider);
+
+    return RefreshIndicator(
+      color: AppColors.pink,
+      onRefresh: () async => ref.invalidate(reportsProvider),
+      child: reportsAsync.when(
+        loading: () => ListView(children: const [
+          SizedBox(height: 240),
+          Center(child: CircularProgressIndicator(color: AppColors.pink)),
+        ]),
+        error: (e, _) => ListView(children: [
+          const SizedBox(height: 180),
+          ErrorRetry(error: e, onRetry: () => ref.invalidate(reportsProvider)),
+        ]),
+        data: (r) => _ReportsBody(r: r),
+      ),
+    );
+  }
+}
+
+class _ReportsBody extends StatelessWidget {
+  final ReportData r;
+  const _ReportsBody({required this.r});
+
+  @override
   Widget build(BuildContext context) {
+    final delta = r.revenueDeltaPct;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        const Text('Reports', style: T.h1),
+        Text(tr('reports'), style: T.h1),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(16),
@@ -21,56 +53,83 @@ class ReportsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Delivery revenue · today', style: TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600)),
+              Text(tr('revenue_today'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: const [
-                Text('312.40', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
-                SizedBox(width: 6),
-                Text('AED', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w700)),
+              Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                Text(r.revenue.toStringAsFixed(2),
+                    style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+                const SizedBox(width: 6),
+                const Text('AED', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w700)),
               ]),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(999)),
-                child: const Text('▲ 12% vs yesterday', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-              ),
+              if (delta != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(999)),
+                  child: Text(
+                    '${delta >= 0 ? "▲" : "▼"} ${delta.abs().toStringAsFixed(0)}% ${tr('vs_yesterday')}',
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
         const SizedBox(height: 14),
-        Row(children: const [
-          Expanded(child: _Mini('Orders', '18')),
-          SizedBox(width: 8),
-          Expanded(child: _Mini('Completed', '16')),
-          SizedBox(width: 8),
-          Expanded(child: _Mini('Avg fee', '17 AED')),
+        Row(children: [
+          Expanded(child: _Mini(tr('orders_label'), '${r.orders}')),
+          const SizedBox(width: 8),
+          Expanded(child: _Mini(tr('completed'), '${r.delivered}')),
+          const SizedBox(width: 8),
+          Expanded(child: _Mini(tr('avg_fee'), '${r.avgFee.toStringAsFixed(0)} AED')),
         ]),
         const SizedBox(height: 18),
-        const SectionHeader('Recent', action: 'Export'),
+        SectionHeader(tr('recent')),
         const SizedBox(height: 10),
-        _histRow('#2039 · Layla', 'Delivered · 11.5 AED fee', 'delivered'),
-        _histRow('#2038 · Yousef', 'Delivered · 14.0 AED fee', 'delivered'),
-        _histRow('#2037 · Mariam', 'Cancelled · refunded', 'cancelled'),
+        if (r.recent.isEmpty)
+          EmptyState(message: tr('no_recent'))
+        else
+          ...r.recent.map((row) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => TrackingScreen(order: _stubOrder(row)),
+                  )),
+                  child: AppCard(
+                    child: Row(children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${row.orderNo} · ${row.customerName}',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                overflow: TextOverflow.ellipsis),
+                            if (row.deliveryFee > 0)
+                              Text('AED ${row.deliveryFee.toStringAsFixed(2)}', style: T.mutedSm),
+                          ],
+                        ),
+                      ),
+                      StatusBadge(status: row.status),
+                    ]),
+                  ),
+                ),
+              )),
       ],
     );
   }
 
-  Widget _histRow(String title, String sub, String status) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: AppCard(
-          child: Row(children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                  Text(sub, style: T.mutedSm),
-                ],
-              ),
-            ),
-            StatusBadge(status: status),
-          ]),
-        ),
+  // Minimal order so tapping a report row opens tracking (it refetches by id).
+  OrderModel _stubOrder(ReportRow row) => OrderModel(
+        id: row.id,
+        orderNo: row.orderNo,
+        customerName: row.customerName,
+        customerPhone: '',
+        status: row.status,
+        paymentStatus: 'paid',
+        orderValue: 0,
+        deliveryFee: row.deliveryFee,
+        createdAt: DateTime.now(),
       );
 }
 

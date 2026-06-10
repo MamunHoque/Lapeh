@@ -36,3 +36,8 @@ final orderDetailProvider = FutureProvider.family<OrderModel, int>((ref, id) asy
 final historyProvider = FutureProvider<List<OrderModel>>((ref) async {
   return ref.read(restaurantServiceProvider).history();
 });
+
+// Reports (today + 7-day recent)
+final reportsProvider = FutureProvider<ReportData>((ref) async {
+  return ref.read(restaurantServiceProvider).reports();
+});

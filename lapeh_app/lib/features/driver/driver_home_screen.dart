@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
 import '../../core/providers/auth_provider.dart';
@@ -22,9 +23,17 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
 class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Timer? _offerPoll;
   Timer? _orderPoll;
+  bool _navigating = false; // guard against double-pushing DeliveryFlow
   @override
   void initState() {
     super.initState();
+    // Adopt backend-reported online status so the toggle is correct after restart.
+    final status = ref.read(authProvider).valueOrNull?.driver?.status;
+    if (status != null && (status == 'online' || status == 'on_delivery')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(driverStatusProvider.notifier).sync(status);
+      });
+    }
     _initFcm();
   }
 
@@ -68,11 +77,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   }
 
   Future<void> _checkActiveOrder() async {
+    if (_navigating) return;
     try {
       final order = await DriverService().currentOrder();
-      if (order != null && !order.isTerminal && mounted) {
+      if (order != null && !order.isTerminal && mounted && !_navigating) {
         final status = ref.read(driverStatusProvider);
         if (status == 'online' || status == 'offline') {
+          _navigating = true;
           ref.read(driverStatusProvider.notifier).setOnDelivery();
           _stopPolling();
           LocationService().startBroadcasting();
@@ -80,12 +91,26 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             context,
             MaterialPageRoute(builder: (_) => DeliveryFlowScreen(order: order)),
           ).then((_) {
+            _navigating = false;
             LocationService().stopBroadcasting();
             _startPolling();
           });
         }
       }
     } catch (_) {}
+  }
+
+  void _showPermissionIssue(LocationOutcome outcome) {
+    final blocked = outcome == LocationOutcome.deniedForever;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(blocked ? tr('location_denied_forever') : tr('location_permission')),
+      action: blocked
+          ? SnackBarAction(
+              label: tr('open_settings'),
+              onPressed: () => LocationService().openSettings(),
+            )
+          : null,
+    ));
   }
 
   @override
@@ -129,17 +154,15 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
           ),
         ]),
         const SizedBox(height: 14),
-        MapPlaceholder(height: 210, showRoute: false, dropLabel: '', pickupLabel: tr('you_marker'), movingDotT: null),
+        const _DriverMiniMap(height: 210),
         const SizedBox(height: 14),
         _StatusToggle(
           online: online,
           onChanged: (v) async {
             if (v) {
-              final ok = await LocationService().requestPermission();
-              if (!ok && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(tr('location_permission'))),
-                );
+              final outcome = await LocationService().requestPermissionDetailed();
+              if (outcome != LocationOutcome.granted) {
+                if (mounted) _showPermissionIssue(outcome);
                 return;
               }
               await ref.read(driverStatusProvider.notifier).goOnline();
@@ -235,6 +258,78 @@ class _Mini extends StatelessWidget {
         const SizedBox(height: 2),
         Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       ]),
+    );
+  }
+}
+
+/// Live map of the driver's own position. Falls back to the painted
+/// placeholder while permission is pending or location is unavailable.
+class _DriverMiniMap extends StatefulWidget {
+  final double height;
+  const _DriverMiniMap({required this.height});
+  @override
+  State<_DriverMiniMap> createState() => _DriverMiniMapState();
+}
+
+class _DriverMiniMapState extends State<_DriverMiniMap> {
+  GoogleMapController? _ctrl;
+  LatLng? _pos;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _update();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _update());
+  }
+
+  Future<void> _update() async {
+    final p = await LocationService().getCurrentPosition();
+    if (p != null && mounted) {
+      final next = LatLng(p.latitude, p.longitude);
+      setState(() => _pos = next);
+      _ctrl?.animateCamera(CameraUpdate.newLatLng(next));
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _ctrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_pos == null) {
+      return MapPlaceholder(
+        height: widget.height,
+        showRoute: false,
+        dropLabel: '',
+        pickupLabel: tr('you_marker'),
+        movingDotT: null,
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: widget.height,
+        child: GoogleMap(
+          initialCameraPosition: CameraPosition(target: _pos!, zoom: 15),
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          markers: {
+            Marker(
+              markerId: const MarkerId('you'),
+              position: _pos!,
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+              infoWindow: InfoWindow(title: tr('you_marker')),
+            ),
+          },
+          onMapCreated: (c) => _ctrl = c,
+        ),
+      ),
     );
   }
 }

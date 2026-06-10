@@ -40,6 +40,9 @@ return [
     'view' => 'View',
     'edit' => 'Edit',
     'delete' => 'Delete',
+    'copy_link' => 'Copy link',
+    'copied' => 'Copied!',
+    'customer_link' => 'Customer link',
     'cancel' => 'Cancel',
     'save_changes' => 'Save Changes',
     'update' => 'Update',
@@ -264,6 +267,16 @@ return [
 
     // Activity log
     'no_activity' => 'No activity logged',
+    'actor' => 'Actor',
+    'ip_address' => 'IP',
+    'details' => 'Details',
+    'all_actions' => 'All actions',
+    'date_from' => 'From',
+    'date_to' => 'To',
+    'reset' => 'Reset',
+    'results_count' => ':count events',
+    'role_customer' => 'Customer',
+    'role_system' => 'System',
 
     // Settings
     'system_settings' => 'System Settings',

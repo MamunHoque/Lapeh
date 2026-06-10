@@ -22,6 +22,7 @@
             --indigo: #7C5CFC; --indigo-s: #EFE9FF;
         }
         * { box-sizing: border-box; }
+        [x-cloak] { display: none !important; }
         body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
         h1,h2,h3,b,.sora { font-family: 'Sora', sans-serif; }
         .sidebar { background: var(--ink); color: #fff; width: 262px; min-height: 100vh; display: flex; flex-direction: column; position: fixed; top: 0; inset-inline-start: 0; overflow-y: auto; z-index: 40; }

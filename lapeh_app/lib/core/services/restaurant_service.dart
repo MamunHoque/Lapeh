@@ -76,4 +76,9 @@ class RestaurantService {
     final items = data is Map ? data['data'] as List : data as List;
     return items.map((e) => OrderModel.fromJson(e)).toList();
   }
+
+  Future<ReportData> reports() async {
+    final res = await _api.dio.get('/restaurant/reports');
+    return ReportData.fromJson(Map<String, dynamic>.from(res.data));
+  }
 }

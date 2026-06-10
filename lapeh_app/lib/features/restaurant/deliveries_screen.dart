@@ -27,7 +27,7 @@ class DeliveriesScreen extends ConsumerWidget {
             tabs: [Tab(text: tr('active')), Tab(text: tr('history'))],
           ),
           Expanded(
-            child: TabBarView(children: [
+            child: TabBarView(children: const [
               _OrderList(status: null, activeOnly: true),
               _OrderList(status: 'delivered', activeOnly: false),
             ]),
@@ -43,26 +43,37 @@ class _OrderList extends ConsumerWidget {
   final bool activeOnly;
   const _OrderList({required this.status, required this.activeOnly});
 
+  void _refresh(WidgetRef ref) {
+    ref.invalidate(activeOnly ? ordersProvider(null) : historyProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = activeOnly
         ? ref.watch(ordersProvider(null))
         : ref.watch(historyProvider);
 
-    return ordersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.pink)),
-      error: (e, _) => Center(child: Text('${tr('error_prefix')}: $e', style: T.muted)),
+    return RefreshIndicator(
+      color: AppColors.pink,
+      onRefresh: () async => _refresh(ref),
+      child: ordersAsync.when(
+      loading: () => ListView(children: const [
+        SizedBox(height: 220),
+        Center(child: CircularProgressIndicator(color: AppColors.pink)),
+      ]),
+      error: (e, _) => ListView(children: [
+        const SizedBox(height: 160),
+        ErrorRetry(error: e, onRetry: () => _refresh(ref)),
+      ]),
       data: (orders) {
         final filtered = activeOnly
             ? orders.where((o) => !o.isTerminal).toList()
             : orders;
         if (filtered.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Text(tr('no_orders'), style: const TextStyle(color: AppColors.slate)),
-            ),
-          );
+          return ListView(children: [
+            const SizedBox(height: 60),
+            EmptyState(message: tr('no_orders')),
+          ]);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -84,6 +95,7 @@ class _OrderList extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  if (o.customerLink != null) CopyLinkIcon(link: o.customerLink!),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -100,6 +112,7 @@ class _OrderList extends ConsumerWidget {
           },
         );
       },
+      ),
     );
   }
 }

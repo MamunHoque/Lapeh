@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'driver_service.dart';
 
+enum LocationOutcome { granted, denied, deniedForever, serviceDisabled }
+
 class LocationService {
   static final LocationService _instance = LocationService._();
   factory LocationService() => _instance;
@@ -13,17 +15,25 @@ class LocationService {
   bool get isBroadcasting => _broadcasting;
 
   Future<bool> requestPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return false;
+    return (await requestPermissionDetailed()) == LocationOutcome.granted;
+  }
+
+  /// Detailed permission result so the UI can distinguish "denied this time"
+  /// from "blocked forever" (needs app settings) and "GPS off".
+  Future<LocationOutcome> requestPermissionDetailed() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return LocationOutcome.serviceDisabled;
 
     LocationPermission perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied) return false;
     }
-    if (perm == LocationPermission.deniedForever) return false;
-    return true;
+    if (perm == LocationPermission.deniedForever) return LocationOutcome.deniedForever;
+    if (perm == LocationPermission.denied) return LocationOutcome.denied;
+    return LocationOutcome.granted;
   }
+
+  Future<bool> openSettings() => Geolocator.openAppSettings();
 
   Future<Position?> getCurrentPosition() async {
     final ok = await requestPermission();

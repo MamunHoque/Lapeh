@@ -40,7 +40,11 @@ return [
     ],
 
     'fcm' => [
-        'server_key' => env('FCM_SERVER_KEY'),
+        // Path to the Firebase service-account JSON (HTTP v1 API).
+        // Relative paths resolve from the project base path.
+        'credentials' => env('FIREBASE_CREDENTIALS'),
+        // Defaults to the project_id inside the credentials file when blank.
+        'project_id' => env('FIREBASE_PROJECT_ID'),
     ],
 
     'payment' => [
