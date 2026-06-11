@@ -3,7 +3,12 @@
 @section('content')
 <div style="display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;">
 <div class="card">
-    <div class="card-head"><h3 class="sora" style="font-size:15px;font-weight:700;">{{ __('admin.delivery_zones') }}</h3></div>
+    <div class="card-head">
+        <h3 class="sora" style="font-size:15px;font-weight:700;">{{ __('admin.delivery_zones') }}</h3>
+        <x-admin.toolbar :search="__('admin.search_zone_placeholder')">
+            <x-admin.date-range/>
+        </x-admin.toolbar>
+    </div>
     <table class="table">
         <thead><tr><th>{{ __('admin.name') }}</th><th>{{ __('admin.base_fee') }}</th><th>{{ __('admin.per_km') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
         <tbody>
@@ -25,6 +30,7 @@
             @endforelse
         </tbody>
     </table>
+    <div style="padding:16px 18px;border-top:1px solid var(--line);">{{ $zones->links() }}</div>
 </div>
 <div class="card">
     <div class="card-head"><h3 class="sora" style="font-size:14px;font-weight:700;">{{ __('admin.add_zone') }}</h3></div>

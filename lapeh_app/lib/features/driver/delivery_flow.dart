@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -84,14 +85,11 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
     switch (step) {
       case 0:
         return _NavScreen(
+          order: o,
+          toPickup: true,
           title: tr('to_pickup'),
           destination: o.hasPickupCoords ? LatLng(o.pickupLat!, o.pickupLng!) : null,
           destinationLabel: o.pickupName ?? tr('pickup_label'),
-          banner: ('${tr('head_to')} ${o.pickupName ?? tr('pickup_label')}', ''),
-          contactIcon: Icons.storefront,
-          contactIsPickup: true,
-          contactTitle: o.pickupName ?? tr('pickup_label'),
-          contactSub: '${tr('order_prefix')} ${o.orderNo} · AED ${o.orderValue.toStringAsFixed(0)}',
           cta: tr('arrived_pickup'),
           onCta: () => _advance('arrived_at_pickup'),
         );
@@ -99,14 +97,11 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
         return _PickupScreen(order: o, onNext: _pickupAndGo);
       case 2:
         return _NavScreen(
+          order: o,
+          toPickup: false,
           title: tr('to_customer'),
           destination: o.hasCustomerCoords ? LatLng(o.customerLat!, o.customerLng!) : null,
           destinationLabel: o.customerName,
-          banner: (o.customerAddress ?? o.customerName, o.distanceKm != null ? '${o.distanceKm!.toStringAsFixed(1)} km' : ''),
-          contactIcon: Icons.person,
-          contactIsPickup: false,
-          contactTitle: o.customerName,
-          contactSub: o.customerPhone,
           cta: tr('ive_arrived'),
           onCta: () => setState(() => step++),
         );
@@ -121,25 +116,20 @@ class _DeliveryFlowScreenState extends ConsumerState<DeliveryFlowScreen> {
 // ─── Navigation screen with real Google Map ───────────────────────────────────
 
 class _NavScreen extends StatefulWidget {
+  final OrderModel order;
+  final bool toPickup;
   final String title;
   final LatLng? destination;
   final String destinationLabel;
-  final (String, String) banner;
-  final IconData contactIcon;
-  final bool contactIsPickup;
-  final String contactTitle, contactSub;
   final String cta;
   final VoidCallback onCta;
 
   const _NavScreen({
+    required this.order,
+    required this.toPickup,
     required this.title,
     required this.destination,
     required this.destinationLabel,
-    required this.banner,
-    required this.contactIcon,
-    required this.contactIsPickup,
-    required this.contactTitle,
-    required this.contactSub,
     required this.cta,
     required this.onCta,
   });
@@ -153,6 +143,7 @@ class _NavScreenState extends State<_NavScreen> {
   LatLng? _currentPos;
   Timer? _locTimer;
   Set<Marker> _markers = {};
+  double? _liveKm; // live distance from the driver to the destination
 
   @override
   void initState() {
@@ -165,7 +156,12 @@ class _NavScreenState extends State<_NavScreen> {
   Future<void> _updateLocation() async {
     final pos = await LocationService().getCurrentPosition();
     if (pos != null && mounted) {
-      setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+      final here = LatLng(pos.latitude, pos.longitude);
+      final dest = widget.destination;
+      setState(() {
+        _currentPos = here;
+        _liveKm = dest != null ? _haversineKm(here, dest) : null;
+      });
       _buildMarkers();
     }
   }
@@ -221,7 +217,7 @@ class _NavScreenState extends State<_NavScreen> {
       appBar: AppBar(title: Text(widget.title)),
       body: Column(children: [
         SizedBox(
-          height: 300,
+          height: 270,
           child: dest != null
               ? GoogleMap(
                   initialCameraPosition: initialCamera,
@@ -246,61 +242,41 @@ class _NavScreenState extends State<_NavScreen> {
             offset: const Offset(0, -22),
             child: Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 20, offset: const Offset(0, -4))],
               ),
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               child: Column(children: [
                 Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.line, borderRadius: BorderRadius.circular(9))),
                 const SizedBox(height: 14),
-                // Navigation banner
-                GestureDetector(
-                  onTap: _launchNavigation,
-                  child: Container(
-                    padding: const EdgeInsets.all(13),
-                    decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(14)),
-                    child: Row(children: [
-                      const Icon(Icons.navigation, color: Color(0xFF7CF0B4), size: 20),
-                      const SizedBox(width: 11),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(widget.banner.$1, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          if (widget.banner.$2.isNotEmpty)
-                            Text(widget.banner.$2, style: const TextStyle(color: Color(0xFFB7BECC), fontSize: 11)),
-                        ]),
-                      ),
-                      const Icon(Icons.open_in_new, color: Color(0xFF7CF0B4), size: 16),
+                Row(children: [
+                  _phasePill(),
+                  const Spacer(),
+                  if (_liveKm != null) ...[
+                    _metric(Icons.route, '${_liveKm!.toStringAsFixed(1)} ${tr('km_unit')}'),
+                    const SizedBox(width: 8),
+                    _metric(Icons.schedule, '~${_etaMin()} ${tr('min_unit')}'),
+                  ],
+                ]),
+                const SizedBox(height: 12),
+                _navBanner(),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(children: [
+                      _routeCard(),
+                      const SizedBox(height: 12),
+                      _contactCard(),
+                      if (widget.order.items.isNotEmpty || widget.order.orderValue > 0) ...[
+                        const SizedBox(height: 12),
+                        _orderCard(),
+                      ],
                     ]),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Container(
-                    width: 38, height: 38,
-                    decoration: BoxDecoration(
-                      color: widget.contactIsPickup ? AppColors.ink : AppColors.pinkSoft,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(widget.contactIcon, color: widget.contactIsPickup ? Colors.white : AppColors.pink, size: 18),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(widget.contactTitle, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
-                      Text(widget.contactSub, style: T.mutedSm),
-                    ]),
-                  ),
-                  GestureDetector(
-                    onTap: () => launchUrl(Uri.parse('tel:${widget.contactSub}')),
-                    child: Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(color: AppColors.greenSoft, borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.phone, color: AppColors.green, size: 18),
-                    ),
-                  ),
-                ]),
-                const Spacer(),
+                const SizedBox(height: 10),
                 LapehButton(label: widget.cta, icon: Icons.check, onPressed: widget.onCta),
               ]),
             ),
@@ -310,12 +286,183 @@ class _NavScreenState extends State<_NavScreen> {
     );
   }
 
+  int _etaMin() {
+    if (_liveKm == null) return 0;
+    // Rough city speed ~22 km/h.
+    return (_liveKm! / 22 * 60).clamp(1, 999).round();
+  }
+
+  Widget _phasePill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(color: AppColors.pinkSoft, borderRadius: BorderRadius.circular(999)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(widget.toPickup ? Icons.storefront : Icons.flag, size: 13, color: AppColors.pink),
+        const SizedBox(width: 6),
+        Text(widget.toPickup ? tr('to_pickup') : tr('to_customer'),
+            style: const TextStyle(color: AppColors.pink, fontWeight: FontWeight.w700, fontSize: 12)),
+      ]),
+    );
+  }
+
+  Widget _metric(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(999)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: AppColors.slate),
+        const SizedBox(width: 5),
+        Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.ink)),
+      ]),
+    );
+  }
+
+  Widget _navBanner() {
+    final sub = _liveKm != null
+        ? '${_liveKm!.toStringAsFixed(1)} ${tr('km_unit')} · ~${_etaMin()} ${tr('min_unit')}'
+        : widget.destinationLabel;
+    return GestureDetector(
+      onTap: _launchNavigation,
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(14)),
+        child: Row(children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.navigation, color: Color(0xFF7CF0B4), size: 18),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('navigate'), style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
+              Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFB7BECC), fontSize: 11)),
+            ]),
+          ),
+          const Icon(Icons.open_in_new, color: Color(0xFF7CF0B4), size: 16),
+        ]),
+      ),
+    );
+  }
+
+  Widget _routeCard() {
+    final o = widget.order;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.line)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Column(children: [
+          _dot(AppColors.green, filled: widget.toPickup),
+          Container(width: 2, height: 34, color: AppColors.line),
+          _dot(AppColors.pink, filled: !widget.toPickup),
+        ]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _routeBlock(tr('pickup'), o.pickupName ?? tr('pickup_label'), o.pickupAddress, active: widget.toPickup),
+            const SizedBox(height: 16),
+            _routeBlock(tr('dropoff_label'), o.customerName, o.customerAddress, active: !widget.toPickup),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _dot(Color color, {required bool filled}) {
+    return Container(
+      width: 14, height: 14,
+      decoration: BoxDecoration(color: filled ? color : Colors.white, shape: BoxShape.circle, border: Border.all(color: color, width: 2)),
+    );
+  }
+
+  Widget _routeBlock(String label, String title, String? sub, {required bool active}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label.toUpperCase(),
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: .5, color: active ? AppColors.pink : AppColors.slate2)),
+      const SizedBox(height: 2),
+      Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.ink)),
+      if (sub != null && sub.isNotEmpty) ...[
+        const SizedBox(height: 1),
+        Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: T.mutedSm),
+      ],
+    ]);
+  }
+
+  Widget _contactCard() {
+    final o = widget.order;
+    final name = widget.toPickup ? (o.pickupName ?? tr('pickup_label')) : o.customerName;
+    final sub = widget.toPickup ? '${tr('order_prefix')} ${o.orderNo}' : o.customerPhone;
+    final phone = widget.toPickup ? o.pickupPhone : o.customerPhone;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(16)),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(color: widget.toPickup ? AppColors.ink : AppColors.pinkSoft, borderRadius: BorderRadius.circular(12)),
+          child: Icon(widget.toPickup ? Icons.storefront : Icons.person, color: widget.toPickup ? Colors.white : AppColors.pink, size: 19),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            Text(sub, style: T.mutedSm),
+          ]),
+        ),
+        if (phone != null && phone.isNotEmpty)
+          GestureDetector(
+            onTap: () => launchUrl(Uri.parse('tel:$phone')),
+            child: Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(color: AppColors.greenSoft, borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.phone, color: AppColors.green, size: 18),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  Widget _orderCard() {
+    final o = widget.order;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.line)),
+      child: Column(children: [
+        _kv(tr('package_items'), '${o.items.length}'),
+        const SizedBox(height: 8),
+        _kv(tr('order_value_label'), 'AED ${o.orderValue.toStringAsFixed(2)}'),
+        if (o.deliveryFee != null) ...[
+          const SizedBox(height: 8),
+          _kv(tr('delivery_earnings'), 'AED ${o.deliveryFee!.toStringAsFixed(2)}', highlight: true),
+        ],
+      ]),
+    );
+  }
+
+  Widget _kv(String k, String v, {bool highlight = false}) {
+    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(k, style: T.mutedSm),
+      Text(v, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: highlight ? AppColors.pink : AppColors.ink)),
+    ]);
+  }
+
   LatLngBounds _latLngBounds(LatLng a, LatLng b) => LatLngBounds(
         southwest: LatLng(a.latitude < b.latitude ? a.latitude : b.latitude,
             a.longitude < b.longitude ? a.longitude : b.longitude),
         northeast: LatLng(a.latitude > b.latitude ? a.latitude : b.latitude,
             a.longitude > b.longitude ? a.longitude : b.longitude),
       );
+}
+
+double _haversineKm(LatLng a, LatLng b) {
+  const r = 6371.0;
+  final dLat = (b.latitude - a.latitude) * math.pi / 180;
+  final dLng = (b.longitude - a.longitude) * math.pi / 180;
+  final la1 = a.latitude * math.pi / 180;
+  final la2 = b.latitude * math.pi / 180;
+  final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(la1) * math.cos(la2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+  return 2 * r * math.asin(math.sqrt(h));
 }
 
 // ─── Pickup confirmation screen ───────────────────────────────────────────────
@@ -397,7 +544,7 @@ class _OtpScreen extends ConsumerStatefulWidget {
 
 class _OtpScreenState extends ConsumerState<_OtpScreen> {
   String code = '';
-  File? _photo;
+  Uint8List? _photoBytes;
   bool _loading = false;
   String? _error;
   final _picker = ImagePicker();
@@ -412,14 +559,17 @@ class _OtpScreenState extends ConsumerState<_OtpScreen> {
 
   Future<void> _pickPhoto() async {
     final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
-    if (picked != null && mounted) setState(() => _photo = File(picked.path));
+    if (picked == null) return;
+    // Read bytes so the preview/upload work on web too (no dart:io File).
+    final bytes = await picked.readAsBytes();
+    if (mounted) setState(() => _photoBytes = bytes);
   }
 
   Future<void> _confirm() async {
     if (code.length < 4) return;
     setState(() { _loading = true; _error = null; });
     try {
-      await DriverService().deliver(widget.order.id, otp: code, photoPath: _photo?.path);
+      await DriverService().deliver(widget.order.id, otp: code, photoBytes: _photoBytes);
       await ref.read(driverStatusProvider.notifier).goOnline();
       LocationService().stopBroadcasting();
       widget.onDone();
@@ -478,10 +628,10 @@ class _OtpScreenState extends ConsumerState<_OtpScreen> {
             _Keypad(onKey: _key),
             const SizedBox(height: 12),
             // Photo preview or add button
-            if (_photo != null)
+            if (_photoBytes != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(_photo!, height: 90, width: double.infinity, fit: BoxFit.cover),
+                child: Image.memory(_photoBytes!, height: 90, width: double.infinity, fit: BoxFit.cover),
               )
             else
               GestureDetector(

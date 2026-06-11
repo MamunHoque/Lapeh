@@ -1,17 +1,16 @@
 @extends('admin.layout')
 @section('title', __('admin.users'))
 @section('content')
-<div style="display:flex;gap:10px;margin-bottom:18px;">
-    <form method="GET" style="display:flex;gap:10px;">
-        <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('admin.search_placeholder') }}" class="form-input" style="width:220px;">
-        <select name="role" class="form-input form-select" style="width:150px;">
+<div style="margin-bottom:18px;">
+    <x-admin.toolbar :search="__('admin.search_placeholder')">
+        <select name="role" class="form-input form-select admin-toolbar-field">
             <option value="">{{ __('admin.all_roles') }}</option>
             @foreach(['admin','sender','driver','fleet'] as $r)
                 <option value="{{ $r }}" @selected(request('role')===$r)>{{ __('admin.role_'.$r) }}</option>
             @endforeach
         </select>
-        <button type="submit" class="btn btn-ghost">{{ __('admin.filter') }}</button>
-    </form>
+        <x-admin.date-range/>
+    </x-admin.toolbar>
 </div>
 <div class="card">
     <table class="table">

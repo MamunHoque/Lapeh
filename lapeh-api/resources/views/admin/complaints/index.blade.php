@@ -1,16 +1,22 @@
 @extends('admin.layout')
 @section('title', __('admin.complaints'))
 @section('content')
-<div style="display:flex;gap:10px;margin-bottom:18px;">
-    <form method="GET" style="display:flex;gap:10px;">
-        <select name="status" class="form-input form-select" style="width:160px;">
+<div style="margin-bottom:18px;">
+    <x-admin.toolbar :search="__('admin.search_complaint_placeholder')">
+        <select name="status" class="form-input form-select admin-toolbar-field">
             <option value="">{{ __('admin.all_statuses') }}</option>
             <option value="open" @selected(request('status')==='open')>{{ __('admin.open') }}</option>
             <option value="under_review" @selected(request('status')==='under_review')>{{ __('admin.under_review') }}</option>
             <option value="resolved" @selected(request('status')==='resolved')>{{ __('admin.resolved') }}</option>
         </select>
-        <button type="submit" class="btn btn-ghost">{{ __('admin.filter') }}</button>
-    </form>
+        <select name="type" class="form-input form-select admin-toolbar-field">
+            <option value="">{{ __('admin.all_types') }}</option>
+            @foreach(array_keys(config('lapeh.complaint_types')) as $t)
+                <option value="{{ $t }}" @selected(request('type')===$t)>{{ config('lapeh.complaint_types.'.$t.'.'.app()->getLocale()) }}</option>
+            @endforeach
+        </select>
+        <x-admin.date-range/>
+    </x-admin.toolbar>
 </div>
 <div class="card">
     <table class="table">

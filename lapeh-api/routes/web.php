@@ -48,7 +48,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.locale')->group(functi
         Route::patch('complaints/{complaint}', [AdminWebController::class, 'complaintUpdate'])->name('complaints.update');
         Route::get('ratings', [AdminWebController::class, 'ratings'])->name('ratings');
         Route::get('payments', [AdminWebController::class, 'payments'])->name('payments');
+        Route::get('payments/export', [AdminWebController::class, 'paymentsExport'])->name('payments.export');
         Route::get('reports', [AdminWebController::class, 'reports'])->name('reports');
+        Route::get('reports/export/{type}', [AdminWebController::class, 'reportsExport'])->name('reports.export')->where('type', '[a-z]+');
         Route::get('sms', [AdminWebController::class, 'sms'])->name('sms');
         Route::get('activity-logs', [AdminWebController::class, 'activityLogs'])->name('activity-logs');
         // System Settings Hub (tabbed)

@@ -41,11 +41,17 @@ class DriverService {
 
   Future<void> deliver(int orderId, {
     required String otp,
-    String? photoPath,
+    List<int>? photoBytes,
   }) async {
     final map = <String, dynamic>{'otp': otp};
-    if (photoPath != null) {
-      map['photo'] = await MultipartFile.fromFile(photoPath, filename: 'proof.jpg');
+    if (photoBytes != null) {
+      // Bytes work on every platform (web has no dart:io File). Set the
+      // content type explicitly so server-side mimes:jpg validation passes.
+      map['photo'] = MultipartFile.fromBytes(
+        photoBytes,
+        filename: 'proof.jpg',
+        contentType: DioMediaType('image', 'jpeg'),
+      );
     }
     await _api.dio.post(
       '/driver/orders/$orderId/deliver',

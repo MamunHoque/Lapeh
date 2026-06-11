@@ -5,22 +5,21 @@
 <div class="card">
     <div class="card-head">
         <h3 class="sora" style="font-size:15px;font-weight:700;">{{ __('admin.orders') }}</h3>
-        <form method="GET" style="display:flex;gap:10px;align-items:center;">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('admin.search_order_placeholder') }}" class="form-input" style="width:220px;">
-            <select name="status" class="form-input form-select" style="width:180px;">
+        <x-admin.toolbar :search="__('admin.search_order_placeholder')">
+            <select name="status" class="form-input form-select admin-toolbar-field">
                 <option value="">{{ __('admin.all_statuses') }}</option>
                 @foreach(['waiting_for_location','location_confirmed','waiting_for_payment','paid','searching_driver','driver_assigned','arrived_at_pickup','picked_up','on_the_way','delivered','cancelled'] as $s)
                     <option value="{{ $s }}" @selected(request('status') === $s)>{{ __('admin.st_'.$s) }}</option>
                 @endforeach
             </select>
-            <select name="sender_id" class="form-input form-select" style="width:180px;">
+            <select name="sender_id" class="form-input form-select admin-toolbar-field">
                 <option value="">{{ __('admin.all_senders') }}</option>
                 @foreach($senders as $s)
                     <option value="{{ $s->id }}" @selected(request('sender_id') == $s->id)>{{ $s->displayName() }}</option>
                 @endforeach
             </select>
-            <button type="submit" class="btn btn-primary">{{ __('admin.filter') }}</button>
-        </form>
+            <x-admin.date-range/>
+        </x-admin.toolbar>
     </div>
     <div style="overflow-x:auto;">
         <table class="table">

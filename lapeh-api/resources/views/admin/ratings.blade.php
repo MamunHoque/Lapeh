@@ -1,6 +1,17 @@
 @extends('admin.layout')
 @section('title', __('admin.driver_ratings'))
 @section('content')
+<div style="margin-bottom:18px;">
+    <x-admin.toolbar :search="__('admin.search_rating_placeholder')">
+        <select name="status" class="form-input form-select admin-toolbar-field">
+            <option value="">{{ __('admin.all_ratings') }}</option>
+            @foreach([5,4,3,2,1] as $r)
+                <option value="{{ $r }}" @selected(request('status')==(string)$r)>{{ $r }} ★</option>
+            @endforeach
+        </select>
+        <x-admin.date-range/>
+    </x-admin.toolbar>
+</div>
 <div class="card">
     <table class="table">
         <thead><tr><th>{{ __('admin.order') }}</th><th>{{ __('admin.driver') }}</th><th>{{ __('admin.sender') }}</th><th>{{ __('admin.rating') }}</th><th>{{ __('admin.tags') }}</th><th>{{ __('admin.date') }}</th></tr></thead>

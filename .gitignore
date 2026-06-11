@@ -1,3 +1,6 @@
 .DS_Store
 dump.rdb
 .claude/
+
+# Local start.sh runtime pid
+.lapeh-start.pid

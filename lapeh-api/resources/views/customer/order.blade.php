@@ -63,8 +63,8 @@
         </div>
         @endif
 
-        {{-- STEP 1: Confirm Location --}}
-        @if(in_array($order->status, ['waiting_for_location', 'location_confirmed']))
+        {{-- STEP 1: Confirm Location (hidden once the location is confirmed) --}}
+        @if($order->status === 'waiting_for_location')
         <div class="card" style="margin-bottom:20px;" x-show="step === 'location'">
             <div style="padding:20px;">
                 <h2 class="sora" style="font-size:18px;font-weight:700;margin-bottom:4px;">{{ __('customer.confirm_location_title') }}</h2>
@@ -285,7 +285,7 @@
 <script>
 function orderApp() {
     return {
-        step: '{{ in_array($order->status, ["waiting_for_location","location_confirmed"]) ? "location" : "track" }}',
+        step: '{{ $order->status === "waiting_for_location" ? "location" : "track" }}',
         lat: '',
         lng: '',
         gpsStatus: '',
@@ -481,7 +481,7 @@ function lapehInitMap() {
     }
 }
 </script>
-@if(!empty($mapsKey) && in_array($order->status, ['waiting_for_location', 'location_confirmed']))
+@if(!empty($mapsKey) && $order->status === 'waiting_for_location')
 <script async defer
     src="https://maps.googleapis.com/maps/api/js?key={{ $mapsKey }}&libraries=places&callback=lapehInitMap&loading=async"></script>
 @endif

@@ -16,6 +16,7 @@ use App\Models\SmsLog;
 use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Models\Zone;
+use App\Support\DateRange;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -111,6 +112,7 @@ class AdminWebController extends Controller
             $q->where('order_no', 'like', "%{$request->search}%")
               ->orWhere('customer_name', 'like', "%{$request->search}%");
         });
+        DateRange::apply($q, $request);
 
         $orders = $q->paginate(25)->withQueryString();
         $senders = Sender::with('user')->get();
@@ -126,11 +128,14 @@ class AdminWebController extends Controller
 
     public function senders(Request $request)
     {
-        $senders = Sender::with('user')
+        $q = Sender::with('user')
             ->when($request->search, fn($q) => $q->where('business_name', 'like', "%{$request->search}%")
                 ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$request->search}%")->orWhere('phone', 'like', "%{$request->search}%")))
-            ->orderByDesc('created_at')
-            ->paginate(25)->withQueryString();
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->orderByDesc('created_at');
+        DateRange::apply($q, $request);
+
+        $senders = $q->paginate(25)->withQueryString();
 
         return view('admin.senders.index', compact('senders'));
     }
@@ -213,11 +218,13 @@ class AdminWebController extends Controller
 
     public function drivers(Request $request)
     {
-        $drivers = Driver::with(['user', 'fleet'])
+        $q = Driver::with(['user', 'fleet'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, fn($q) => $q->whereHas('user', fn($u) => $u->where('name', 'like', "%{$request->search}%")->orWhere('phone', 'like', "%{$request->search}%")))
-            ->orderByDesc('created_at')
-            ->paginate(25)->withQueryString();
+            ->orderByDesc('created_at');
+        DateRange::apply($q, $request);
+
+        $drivers = $q->paginate(25)->withQueryString();
 
         return view('admin.drivers.index', compact('drivers'));
     }
@@ -291,7 +298,10 @@ class AdminWebController extends Controller
 
     public function zones()
     {
-        $zones = Zone::orderByDesc('created_at')->get();
+        $q = Zone::when(request('search'), fn($q) => $q->where('name', 'like', '%'.request('search').'%'))
+            ->orderByDesc('created_at');
+        DateRange::apply($q, request());
+        $zones = $q->paginate(25)->withQueryString();
         return view('admin.zones', compact('zones'));
     }
 
@@ -350,20 +360,28 @@ class AdminWebController extends Controller
 
     public function users(Request $request)
     {
-        $users = User::when($request->role, fn($q) => $q->where('role', $request->role))
+        $q = User::when($request->role, fn($q) => $q->where('role', $request->role))
             ->when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%")->orWhere('phone', 'like', "%{$request->search}%"))
-            ->orderByDesc('created_at')
-            ->paginate(25)->withQueryString();
+            ->orderByDesc('created_at');
+        DateRange::apply($q, $request);
+
+        $users = $q->paginate(25)->withQueryString();
 
         return view('admin.users', compact('users'));
     }
 
     public function complaints(Request $request)
     {
-        $complaints = Complaint::with(['sender.user', 'order'])
+        $q = Complaint::with(['sender.user', 'order'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->orderByDesc('created_at')
-            ->paginate(25)->withQueryString();
+            ->when($request->type, fn($q) => $q->where('type', $request->type))
+            ->when($request->search, fn($q) => $q->where('description', 'like', "%{$request->search}%")
+                ->orWhereHas('sender.user', fn($u) => $u->where('name', 'like', "%{$request->search}%"))
+                ->orWhereHas('order', fn($o) => $o->where('order_no', 'like', "%{$request->search}%")))
+            ->orderByDesc('created_at');
+        DateRange::apply($q, $request);
+
+        $complaints = $q->paginate(25)->withQueryString();
 
         return view('admin.complaints.index', compact('complaints'));
     }
@@ -395,54 +413,197 @@ class AdminWebController extends Controller
 
     public function ratings()
     {
-        $ratings = DriverRating::with(['driver.user', 'sender.user', 'order'])
-            ->orderByDesc('created_at')
-            ->paginate(25);
+        $q = DriverRating::with(['driver.user', 'sender.user', 'order'])
+            ->when(request('status'), fn($q) => $q->where('rating', request('status')))
+            ->when(request('search'), fn($q) => $q
+                ->whereHas('driver.user', fn($u) => $u->where('name', 'like', '%'.request('search').'%'))
+                ->orWhereHas('sender.user', fn($u) => $u->where('name', 'like', '%'.request('search').'%'))
+                ->orWhereHas('order', fn($o) => $o->where('order_no', 'like', '%'.request('search').'%')))
+            ->orderByDesc('created_at');
+        DateRange::apply($q, request());
+
+        $ratings = $q->paginate(25)->withQueryString();
 
         return view('admin.ratings', compact('ratings'));
     }
 
     public function payments(Request $request)
     {
-        $payments = Payment::with('order.sender.user')
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->orderByDesc('created_at')
-            ->paginate(25)->withQueryString();
+        $payments = $this->paymentsQuery($request)->paginate(25)->withQueryString();
+        $summary = $this->paymentsSummary($request);
 
-        return view('admin.payments', compact('payments'));
+        return view('admin.payments', compact('payments', 'summary'));
     }
 
-    public function reports()
+    public function paymentsExport(Request $request)
     {
-        $daily = Order::selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered, SUM(CASE WHEN status="cancelled" THEN 1 ELSE 0 END) as cancelled, SUM(CASE WHEN status="delivered" THEN delivery_fee ELSE 0 END) as revenue, SUM(CASE WHEN status="delivered" THEN COALESCE(sender_commission,0)+COALESCE(driver_commission,0) ELSE 0 END) as commission')
-            ->groupByRaw('DATE(created_at)')
-            ->orderByDesc('date')
-            ->limit(30)
-            ->get();
+        $rows = $this->paymentsQuery($request)->get()->map(fn($p) => [
+            $p->order?->order_no,
+            $p->order?->sender?->displayName(),
+            ucfirst((string) $p->gateway),
+            $p->gateway_reference,
+            number_format((float) $p->amount, 2, '.', ''),
+            $p->currency,
+            $p->status,
+            optional($p->paid_at)?->format('Y-m-d H:i'),
+            $p->created_at->format('Y-m-d H:i'),
+        ]);
 
-        // Drivers are ranked by net payout (what they actually take home).
-        $topDrivers = Order::selectRaw('driver_id, COUNT(*) as deliveries, SUM(COALESCE(driver_payout, delivery_fee)) as earnings')
+        return $this->streamCsv('payments', [
+            'Order', 'Sender', 'Gateway', 'Reference', 'Amount', 'Currency', 'Status', 'Paid at', 'Created',
+        ], $rows);
+    }
+
+    private function paymentsQuery(Request $request)
+    {
+        $q = Payment::with('order.sender.user')
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->search, fn($q) => $q->where('gateway_reference', 'like', "%{$request->search}%")
+                ->orWhereHas('order', fn($o) => $o->where('order_no', 'like', "%{$request->search}%")))
+            ->orderByDesc('created_at');
+        DateRange::apply($q, $request);
+
+        return $q;
+    }
+
+    /** Collection totals for the payments page (respects search + date range, not status). */
+    private function paymentsSummary(Request $request): object
+    {
+        $q = Payment::query()
+            ->when($request->search, fn($q) => $q->where('gateway_reference', 'like', "%{$request->search}%")
+                ->orWhereHas('order', fn($o) => $o->where('order_no', 'like', "%{$request->search}%")));
+        DateRange::apply($q, $request);
+
+        return $q->selectRaw('
+            SUM(CASE WHEN status="paid" THEN amount ELSE 0 END) as collected,
+            SUM(CASE WHEN status="paid" THEN 1 ELSE 0 END) as paid_count,
+            SUM(CASE WHEN status="pending" THEN amount ELSE 0 END) as pending,
+            SUM(CASE WHEN status="failed" THEN 1 ELSE 0 END) as failed_count,
+            SUM(CASE WHEN status="refunded" THEN amount ELSE 0 END) as refunded,
+            SUM(CASE WHEN status="paid" AND gateway="stripe" THEN amount ELSE 0 END) as stripe_total,
+            SUM(CASE WHEN status="paid" AND gateway="telr" THEN amount ELSE 0 END) as telr_total
+        ')->first();
+    }
+
+    // ─── Reports ──────────────────────────────────────────────────────────────
+
+    public function reports(Request $request)
+    {
+        $overview = $this->reportOverview($request);
+        $payments = $this->paymentsSummary($request);
+        $daily = $this->dailyReportRows($request, 30);
+        $topDrivers = $this->topDriversRows($request, 10);
+        $topSenders = $this->topSendersRows($request, 10);
+
+        return view('admin.reports', compact('overview', 'payments', 'daily', 'topDrivers', 'topSenders'));
+    }
+
+    public function reportsExport(Request $request, string $type)
+    {
+        return match ($type) {
+            'daily' => $this->streamCsv('report-daily',
+                ['Date', 'Orders', 'Delivered', 'Cancelled', 'Revenue', 'Commission'],
+                $this->dailyReportRows($request)->map(fn($r) => [
+                    $r->date, $r->orders, $r->delivered, $r->cancelled,
+                    number_format((float) $r->revenue, 2, '.', ''),
+                    number_format((float) $r->commission, 2, '.', ''),
+                ])),
+            'drivers' => $this->streamCsv('report-drivers',
+                ['Driver', 'Phone', 'Deliveries', 'Net earnings', 'Commission'],
+                $this->topDriversRows($request)->map(fn($r) => [
+                    $r->driver?->user?->name, $r->driver?->user?->phone, $r->deliveries,
+                    number_format((float) $r->earnings, 2, '.', ''),
+                    number_format((float) $r->commission, 2, '.', ''),
+                ])),
+            'senders' => $this->streamCsv('report-senders',
+                ['Sender', 'Orders', 'Delivered', 'Delivery fees', 'Commission'],
+                $this->topSendersRows($request)->map(fn($r) => [
+                    $r->sender?->displayName(), $r->orders, $r->delivered,
+                    number_format((float) $r->fees, 2, '.', ''),
+                    number_format((float) $r->commission, 2, '.', ''),
+                ])),
+            default => abort(404),
+        };
+    }
+
+    private function reportOverview(Request $request): object
+    {
+        $q = Order::query();
+        DateRange::apply($q, $request);
+
+        return $q->selectRaw('
+            COUNT(*) as total,
+            SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered,
+            SUM(CASE WHEN status="cancelled" THEN 1 ELSE 0 END) as cancelled,
+            SUM(CASE WHEN status="delivered" THEN delivery_fee ELSE 0 END) as gross_fees,
+            SUM(CASE WHEN status="delivered" THEN COALESCE(sender_commission,0)+COALESCE(driver_commission,0) ELSE 0 END) as commission,
+            SUM(CASE WHEN status="delivered" THEN COALESCE(driver_payout, delivery_fee) ELSE 0 END) as driver_net,
+            SUM(CASE WHEN status="delivered" THEN order_value ELSE 0 END) as order_value,
+            AVG(CASE WHEN status="delivered" THEN delivery_fee ELSE NULL END) as avg_fee,
+            AVG(CASE WHEN status="delivered" THEN distance_km ELSE NULL END) as avg_distance
+        ')->first();
+    }
+
+    private function dailyReportRows(Request $request, ?int $limit = null)
+    {
+        $q = Order::selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered, SUM(CASE WHEN status="cancelled" THEN 1 ELSE 0 END) as cancelled, SUM(CASE WHEN status="delivered" THEN delivery_fee ELSE 0 END) as revenue, SUM(CASE WHEN status="delivered" THEN COALESCE(sender_commission,0)+COALESCE(driver_commission,0) ELSE 0 END) as commission')
+            ->groupByRaw('DATE(created_at)')
+            ->orderByDesc('date');
+        DateRange::apply($q, $request);
+
+        return ($limit ? $q->limit($limit) : $q)->get();
+    }
+
+    private function topDriversRows(Request $request, ?int $limit = null)
+    {
+        $q = Order::selectRaw('driver_id, COUNT(*) as deliveries, SUM(COALESCE(driver_payout, delivery_fee)) as earnings, SUM(COALESCE(driver_commission,0)) as commission')
             ->where('status', 'delivered')
             ->whereNotNull('driver_id')
             ->with('driver.user:id,name,phone')
             ->groupBy('driver_id')
-            ->orderByDesc('earnings')
-            ->limit(10)
-            ->get();
+            ->orderByDesc('earnings');
+        DateRange::apply($q, $request);
 
-        // Platform commission revenue (sender side + driver side).
-        $commission = Order::where('status', 'delivered')->selectRaw('
-            SUM(COALESCE(sender_commission, 0)) as sender_total,
-            SUM(COALESCE(driver_commission, 0)) as driver_total
-        ')->first();
-
-        return view('admin.reports', compact('daily', 'topDrivers', 'commission'));
+        return ($limit ? $q->limit($limit) : $q)->get();
     }
 
-    public function sms()
+    private function topSendersRows(Request $request, ?int $limit = null)
+    {
+        $q = Order::selectRaw('sender_id, COUNT(*) as orders, SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered, SUM(CASE WHEN status="delivered" THEN delivery_fee ELSE 0 END) as fees, SUM(CASE WHEN status="delivered" THEN COALESCE(sender_commission,0) ELSE 0 END) as commission')
+            ->whereNotNull('sender_id')
+            ->with('sender.user')
+            ->groupBy('sender_id')
+            ->orderByDesc('fees');
+        DateRange::apply($q, $request);
+
+        return ($limit ? $q->limit($limit) : $q)->get();
+    }
+
+    /** Stream an array of rows as a downloadable CSV. */
+    private function streamCsv(string $name, array $headers, iterable $rows)
+    {
+        $filename = $name . '-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($headers, $rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, $headers);
+            foreach ($rows as $row) {
+                fputcsv($out, (array) $row);
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function sms(Request $request)
     {
         $templates = SmsTemplate::all();
-        $logs = SmsLog::orderByDesc('created_at')->limit(50)->get();
+        $q = SmsLog::when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->search, fn($q) => $q->where('to', 'like', "%{$request->search}%")
+                ->orWhere('template_key', 'like', "%{$request->search}%")
+                ->orWhere('body', 'like', "%{$request->search}%"))
+            ->orderByDesc('created_at');
+        DateRange::apply($q, $request);
+        $logs = $q->paginate(25)->withQueryString();
         return view('admin.sms', compact('templates', 'logs'));
     }
 

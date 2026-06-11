@@ -69,11 +69,44 @@
         .alert { padding: 12px 16px; border-radius: 10px; font-size: 13.5px; margin-bottom: 18px; }
         .alert-success { background: var(--green-s); color: var(--green); }
         .alert-error { background: var(--red-s); color: var(--red); }
+
+        /* ── Shared list toolbar ───────────────────────────────────────── */
+        .admin-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .admin-toolbar-search { width: 220px; }
+        .admin-toolbar-field { width: 158px; }
+        .admin-toolbar .form-input { min-width: 0; }
+
+        /* ── Mobile drawer + responsive ────────────────────────────────── */
+        .hamburger { display: none; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); flex: none; }
+        .sidebar-overlay { display: none; }
+
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); transition: transform .25s ease; box-shadow: 0 0 50px rgba(20,25,43,.35); }
+            [dir="rtl"] .sidebar { transform: translateX(100%); }
+            .sidebar.sidebar-open { transform: translateX(0); }
+            .main-area { margin-inline-start: 0; }
+            .hamburger { display: flex; }
+            .sidebar-overlay { display: block; position: fixed; inset: 0; background: rgba(20,25,43,.5); z-index: 39; }
+        }
+        @media (max-width: 720px) {
+            .content { padding: 16px 14px 50px; }
+            .topbar { padding: 11px 14px; gap: 10px; }
+            .topbar-date { display: none; }
+            .card-head { flex-direction: column; align-items: stretch; gap: 12px; }
+            .admin-toolbar { width: 100%; }
+            .admin-toolbar .form-input,
+            .admin-toolbar-search,
+            .admin-toolbar-field { width: 100%; }
+            .admin-toolbar-btn { flex: 1; justify-content: center; }
+            .card .table { display: block; overflow-x: auto; white-space: nowrap; }
+        }
     </style>
 </head>
-<body x-data class="h-full">
+<body x-data="{ sidebar: false }" class="h-full">
 
-<div class="sidebar">
+<div class="sidebar-overlay" x-show="sidebar" @click="sidebar = false" x-cloak></div>
+
+<div class="sidebar" :class="{ 'sidebar-open': sidebar }">
     <div style="padding: 20px 20px 18px; display: flex; align-items: center; gap: 11px;">
         <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--pink),var(--pink-deep));display:grid;place-items:center;">
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="white"/></svg>
@@ -171,6 +204,9 @@
 
 <div class="main-area">
     <div class="topbar">
+        <button class="hamburger" @click="sidebar = true" aria-label="Menu">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <div class="sora" style="font-weight:600;font-size:15px;color:var(--ink);">@yield('title', __('admin.dashboard'))</div>
         <div style="flex:1;"></div>
         @if(session('success'))
@@ -180,7 +216,7 @@
            style="color:var(--slate);font-size:12.5px;font-weight:600;text-decoration:none;border:1px solid var(--line);padding:5px 12px;border-radius:999px;background:#fff;">
             {{ __('admin.switch_lang') }}
         </a>
-        <div style="display:flex;align-items:center;gap:8px;color:var(--slate);font-size:13px;">
+        <div class="topbar-date" style="display:flex;align-items:center;gap:8px;color:var(--slate);font-size:13px;">
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
             {{ now()->timezone('Asia/Dubai')->format('D, d M Y · H:i') }} GST
         </div>

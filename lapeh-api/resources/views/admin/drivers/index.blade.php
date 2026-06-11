@@ -2,17 +2,16 @@
 @section('title', __('admin.drivers'))
 
 @section('content')
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-    <form method="GET" style="display:flex;gap:10px;">
-        <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('admin.search_driver_placeholder') }}" class="form-input" style="width:220px;">
-        <select name="status" class="form-input form-select" style="width:160px;">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+    <x-admin.toolbar :search="__('admin.search_driver_placeholder')">
+        <select name="status" class="form-input form-select admin-toolbar-field">
             <option value="">{{ __('admin.all_statuses') }}</option>
             <option value="online" @selected(request('status')==='online')>{{ __('admin.online') }}</option>
             <option value="offline" @selected(request('status')==='offline')>{{ __('admin.offline') }}</option>
             <option value="on_delivery" @selected(request('status')==='on_delivery')>{{ __('admin.on_delivery') }}</option>
         </select>
-        <button type="submit" class="btn btn-ghost">{{ __('admin.filter') }}</button>
-    </form>
+        <x-admin.date-range/>
+    </x-admin.toolbar>
     <a href="{{ route('admin.drivers.create') }}" class="btn btn-primary">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         {{ __('admin.add_driver') }}

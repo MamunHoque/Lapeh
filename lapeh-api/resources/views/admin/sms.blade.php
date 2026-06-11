@@ -23,6 +23,16 @@
     </div>
     <div class="card">
         <div class="card-head"><h3 class="sora" style="font-size:15px;font-weight:700;">{{ __('admin.recent_sms_logs') }}</h3></div>
+        <div style="padding:14px 18px 0;">
+            <x-admin.toolbar :search="__('admin.search_sms_placeholder')">
+                <select name="status" class="form-input form-select admin-toolbar-field">
+                    <option value="">{{ __('admin.all_statuses') }}</option>
+                    <option value="sent" @selected(request('status')==='sent')>{{ __('admin.sent') }}</option>
+                    <option value="failed" @selected(request('status')==='failed')>{{ __('admin.failed') }}</option>
+                </select>
+                <x-admin.date-range/>
+            </x-admin.toolbar>
+        </div>
         <table class="table">
             <thead><tr><th>{{ __('admin.to') }}</th><th>{{ __('admin.template') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.time') }}</th></tr></thead>
             <tbody>
@@ -38,6 +48,7 @@
                 @endforelse
             </tbody>
         </table>
+        <div style="padding:16px 18px;border-top:1px solid var(--line);">{{ $logs->links() }}</div>
     </div>
 </div>
 @endsection
