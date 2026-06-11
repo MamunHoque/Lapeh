@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/i18n.dart';
-import '../../core/models/order_model.dart' show asDouble;
 import '../../core/providers/driver_provider.dart';
 import '../../shared/widgets.dart';
 
@@ -17,16 +16,55 @@ class TripsScreen extends ConsumerWidget {
       color: AppColors.pink,
       onRefresh: () => ref.read(earningsProvider.notifier).refresh(),
       child: earningsAsync.when(
-      loading: () => ListView(children: const [
-        SizedBox(height: 240),
-        Center(child: CircularProgressIndicator(color: AppColors.pink)),
-      ]),
-      error: (e, _) => ListView(children: [
-        const SizedBox(height: 180),
-        ErrorRetry(error: e, onRetry: () => ref.read(earningsProvider.notifier).refresh()),
-      ]),
+      loading: () => const CustomScrollView(
+        physics: AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: CircularProgressIndicator(color: AppColors.pink)),
+          ),
+        ],
+      ),
+      error: (e, _) => CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: ErrorRetry(error: e, onRetry: () => ref.read(earningsProvider.notifier).refresh()),
+          ),
+        ],
+      ),
       data: (e) {
         final trips = e.history;
+        final header = Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr('trips'), style: T.h1),
+              const SizedBox(height: 4),
+              Text('${tr('today')} · ${e.today.trips} ${tr('completed_label')}', style: T.muted),
+            ],
+          ),
+        );
+        if (trips.isEmpty) {
+          return Column(
+            children: [
+              header,
+              Expanded(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: EmptyState(message: tr('no_trips'), icon: Icons.pedal_bike),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
@@ -34,12 +72,7 @@ class TripsScreen extends ConsumerWidget {
             const SizedBox(height: 4),
             Text('${tr('today')} · ${trips.length} ${tr('completed_label')}', style: T.muted),
             const SizedBox(height: 14),
-            if (trips.isEmpty)
-              EmptyState(message: tr('no_trips'), icon: Icons.pedal_bike)
-            else
-              ...trips.map((t) {
-                final trip = t as Map<String, dynamic>;
-                final fee = asDouble(trip['delivery_fee']) ?? 0;
+            ...trips.map((trip) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: AppCard(
@@ -54,12 +87,12 @@ class TripsScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(trip['order_no'] ?? '–', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                            Text(trip['customer_address'] ?? trip['customer_name'] ?? '', style: T.mutedSm),
+                            Text(trip.orderNo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                            Text(trip.area.isNotEmpty ? trip.area : trip.sender, style: T.mutedSm),
                           ],
                         ),
                       ),
-                      Text('+${fee.toStringAsFixed(2)}',
+                      Text('+${trip.earning.toStringAsFixed(2)}',
                           style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.green)),
                     ]),
                   ),

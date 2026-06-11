@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order_model.dart';
+import '../models/driver_earnings_model.dart';
 import '../services/driver_service.dart';
 
 final driverServiceProvider = Provider((_) => DriverService());
@@ -40,10 +41,9 @@ final currentOrderProvider = FutureProvider<OrderModel?>((ref) async {
 });
 
 // Earnings
-class EarningsNotifier extends AsyncNotifier<({double today, List<dynamic> history})> {
+class EarningsNotifier extends AsyncNotifier<DriverEarningsData> {
   @override
-  Future<({double today, List<dynamic> history})> build() =>
-      ref.read(driverServiceProvider).earnings();
+  Future<DriverEarningsData> build() => ref.read(driverServiceProvider).earnings();
 
   Future<void> refresh() async {
     state = const AsyncLoading();
@@ -52,5 +52,4 @@ class EarningsNotifier extends AsyncNotifier<({double today, List<dynamic> histo
 }
 
 final earningsProvider =
-    AsyncNotifierProvider<EarningsNotifier, ({double today, List<dynamic> history})>(
-        EarningsNotifier.new);
+    AsyncNotifierProvider<EarningsNotifier, DriverEarningsData>(EarningsNotifier.new);

@@ -328,8 +328,8 @@ class AdminWebController extends Controller
 
     public function pricing()
     {
-        $pricing = PricingSetting::current();
-        return view('admin.pricing', compact('pricing'));
+        // Pricing now lives inside the Settings hub as a tab.
+        return redirect()->route('admin.settings.tab', 'pricing');
     }
 
     public function pricingUpdate(Request $request)
@@ -345,7 +345,7 @@ class AdminWebController extends Controller
         $pricing = PricingSetting::current();
         $pricing->update($data);
         ActivityLog::record('pricing.updated', $pricing, $data);
-        return redirect()->route('admin.pricing')->with('success', 'Pricing updated.');
+        return redirect()->route('admin.settings.tab', 'pricing')->with('success', __('admin.settings_saved'));
     }
 
     public function users(Request $request)
@@ -414,13 +414,14 @@ class AdminWebController extends Controller
 
     public function reports()
     {
-        $daily = Order::selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered, SUM(CASE WHEN status="delivered" THEN delivery_fee ELSE 0 END) as revenue')
+        $daily = Order::selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered, SUM(CASE WHEN status="cancelled" THEN 1 ELSE 0 END) as cancelled, SUM(CASE WHEN status="delivered" THEN delivery_fee ELSE 0 END) as revenue, SUM(CASE WHEN status="delivered" THEN COALESCE(sender_commission,0)+COALESCE(driver_commission,0) ELSE 0 END) as commission')
             ->groupByRaw('DATE(created_at)')
             ->orderByDesc('date')
             ->limit(30)
             ->get();
 
-        $topDrivers = Order::selectRaw('driver_id, COUNT(*) as deliveries, SUM(delivery_fee) as earnings')
+        // Drivers are ranked by net payout (what they actually take home).
+        $topDrivers = Order::selectRaw('driver_id, COUNT(*) as deliveries, SUM(COALESCE(driver_payout, delivery_fee)) as earnings')
             ->where('status', 'delivered')
             ->whereNotNull('driver_id')
             ->with('driver.user:id,name,phone')
@@ -429,7 +430,13 @@ class AdminWebController extends Controller
             ->limit(10)
             ->get();
 
-        return view('admin.reports', compact('daily', 'topDrivers'));
+        // Platform commission revenue (sender side + driver side).
+        $commission = Order::where('status', 'delivered')->selectRaw('
+            SUM(COALESCE(sender_commission, 0)) as sender_total,
+            SUM(COALESCE(driver_commission, 0)) as driver_total
+        ')->first();
+
+        return view('admin.reports', compact('daily', 'topDrivers', 'commission'));
     }
 
     public function sms()
@@ -476,10 +483,5 @@ class AdminWebController extends Controller
         $roles = ActivityLog::query()->distinct()->whereNotNull('actor_role')->orderBy('actor_role')->pluck('actor_role');
 
         return view('admin.activity-logs', compact('logs', 'actions', 'roles'));
-    }
-
-    public function settings()
-    {
-        return view('admin.settings');
     }
 }

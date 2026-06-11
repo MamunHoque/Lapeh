@@ -6,7 +6,9 @@ import '../../core/models/order_model.dart';
 import '../../core/status_meta.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/sender_provider.dart';
+import '../../core/providers/notification_provider.dart';
 import '../../shared/widgets.dart';
+import '../shared/notifications_screen.dart';
 import 'create_request_screen.dart';
 import 'tracking_screen.dart';
 
@@ -44,7 +46,7 @@ class DashboardScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                _bell(),
+                _bell(context, ref),
               ],
             ),
             const SizedBox(height: 16),
@@ -83,11 +85,32 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _bell() => Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.line)),
-        child: const Icon(Icons.notifications_none, color: AppColors.ink, size: 20),
-      );
+  Widget _bell(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+        ref.read(unreadCountProvider.notifier).refresh();
+      },
+      child: Stack(clipBehavior: Clip.none, children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.line)),
+          child: const Icon(Icons.notifications_none, color: AppColors.ink, size: 20),
+        ),
+        if (unread > 0)
+          Positioned(
+            top: -4, right: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16),
+              decoration: BoxDecoration(color: AppColors.pink, borderRadius: BorderRadius.circular(999), border: Border.all(color: Colors.white, width: 1.5)),
+              child: Text('$unread', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
+            ),
+          ),
+      ]),
+    );
+  }
 }
 
 class _MiniStat extends StatelessWidget {

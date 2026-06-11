@@ -52,9 +52,11 @@ class SenderController extends Controller
 
     public function updateProfile(Request $request): JsonResponse
     {
-        $sender = $request->user()->sender;
+        $user = $request->user();
+        $sender = $user->sender;
 
         $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
             'business_name' => 'nullable|string|max:255',
             'business_category' => 'nullable|string|max:255',
             'contact_person_name' => 'nullable|string|max:255',
@@ -63,9 +65,16 @@ class SenderController extends Controller
             'default_pickup_lng' => 'nullable|numeric|between:-180,180',
         ]);
 
-        $sender->update($data);
+        if ($request->has('name')) {
+            $user->update(['name' => $data['name']]);
+        }
 
-        return response()->json(['sender' => $sender->fresh()]);
+        // type (individual/business) is set at registration and stays read-only.
+        $sender->update(collect($data)->except('name')->all());
+
+        ActivityLog::record('sender.profile_updated', $sender, ['name' => $user->name]);
+
+        return response()->json(['user' => $user->fresh(['sender'])->apiPayload()]);
     }
 
     public function createOrder(Request $request): JsonResponse
@@ -292,6 +301,7 @@ class SenderController extends Controller
                 SUM(CASE WHEN status = "delivered" THEN 1 ELSE 0 END) as delivered,
                 SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) as cancelled,
                 SUM(CASE WHEN status = "delivered" THEN delivery_fee ELSE 0 END) as revenue,
+                SUM(CASE WHEN status = "delivered" THEN COALESCE(sender_commission, 0) ELSE 0 END) as commission,
                 AVG(CASE WHEN status = "delivered" THEN delivery_fee ELSE NULL END) as avg_fee
             ')->first();
 
@@ -313,6 +323,7 @@ class SenderController extends Controller
                 'delivered' => (int) $todayAgg->delivered,
                 'cancelled' => (int) $todayAgg->cancelled,
                 'revenue' => (float) $todayAgg->revenue,
+                'commission' => (float) ($todayAgg->commission ?? 0),
                 'avg_fee' => (float) ($todayAgg->avg_fee ?? 0),
             ],
             'yesterday_revenue' => (float) $yesterdayRevenue,
@@ -322,6 +333,7 @@ class SenderController extends Controller
                 'customer_name' => $o->customer_name,
                 'status' => $o->status,
                 'delivery_fee' => (float) ($o->delivery_fee ?? 0),
+                'commission' => (float) ($o->sender_commission ?? 0),
                 'created_at' => $o->created_at,
             ]),
         ]);

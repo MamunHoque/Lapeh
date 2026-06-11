@@ -255,7 +255,7 @@ class DashboardStats {
 
 class ReportData {
   final int orders, delivered, cancelled;
-  final double revenue, avgFee, yesterdayRevenue;
+  final double revenue, commission, avgFee, yesterdayRevenue;
   final List<ReportRow> recent;
 
   const ReportData({
@@ -263,6 +263,7 @@ class ReportData {
     required this.delivered,
     required this.cancelled,
     required this.revenue,
+    required this.commission,
     required this.avgFee,
     required this.yesterdayRevenue,
     required this.recent,
@@ -281,6 +282,7 @@ class ReportData {
       delivered: asInt(today['delivered']) ?? 0,
       cancelled: asInt(today['cancelled']) ?? 0,
       revenue: asDouble(today['revenue']) ?? 0,
+      commission: asDouble(today['commission']) ?? 0,
       avgFee: asDouble(today['avg_fee']) ?? 0,
       yesterdayRevenue: asDouble(j['yesterday_revenue']) ?? 0,
       recent: (j['recent'] as List? ?? []).map((e) => ReportRow.fromJson(e)).toList(),

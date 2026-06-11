@@ -6,6 +6,7 @@ import '../features/auth/otp_screen.dart';
 import '../features/sender/sender_shell.dart';
 import '../features/driver/driver_shell.dart';
 import 'providers/auth_provider.dart';
+import 'services/app_config_service.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authProvider);
@@ -20,6 +21,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final onAuthPage = loc == '/login' || loc == '/signup';
       final onOtpPage = loc == '/verify-otp';
+
+      // Sender self-registration disabled by admin → block the signup route.
+      if (loc == '/signup' && !AppConfigService.instance.current.senderRegistration) {
+        return '/login';
+      }
 
       // Unauthenticated → allow login/signup only.
       if (user == null) return onAuthPage ? null : '/login';

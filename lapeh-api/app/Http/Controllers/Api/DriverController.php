@@ -204,6 +204,9 @@ class DriverController extends Controller
 
         $order->update(['status' => 'delivered', 'delivered_at' => now()]);
 
+        // Snapshot platform commission / driver payout from current settings.
+        $commission = app(\App\Services\CommissionService::class)->snapshot($order);
+
         OrderStatusLog::create([
             'order_id' => $order->id,
             'status' => 'delivered',
@@ -218,6 +221,8 @@ class DriverController extends Controller
             'order_no' => $order->order_no,
             'driver' => $request->user()->name,
             'delivery_fee' => (float) $order->delivery_fee,
+            'driver_payout' => $commission['driver_payout'],
+            'platform_revenue' => $commission['platform_revenue'],
         ]);
 
         return response()->json(['message' => 'Delivery confirmed.']);
@@ -227,11 +232,68 @@ class DriverController extends Controller
     {
         $driver = $request->user()->driver;
         $today = now()->startOfDay();
+        $yesterday = now()->subDay()->startOfDay();
+        $weekStart = now()->startOfWeek();
+        $monthStart = now()->startOfMonth();
 
-        $todayEarnings = Order::where('driver_id', $driver->id)
+        // "earnings" is the driver's net take-home (delivery fee minus the
+        // platform's commission). COALESCE keeps pre-commission orders correct.
+        $net = 'COALESCE(driver_payout, delivery_fee)';
+
+        // Aggregate delivered earnings for this driver since $from (null = all time).
+        $agg = function (?\Carbon\CarbonInterface $from) use ($driver, $net) {
+            return Order::where('driver_id', $driver->id)
+                ->where('status', 'delivered')
+                ->when($from, fn($q) => $q->where('delivered_at', '>=', $from))
+                ->selectRaw("
+                    COUNT(*) as trips,
+                    SUM($net) as earnings,
+                    SUM(delivery_fee) as gross,
+                    SUM(COALESCE(driver_commission, 0)) as commission,
+                    AVG($net) as avg_earning,
+                    SUM(distance_km) as distance_km
+                ")->first();
+        };
+
+        $todayAgg = $agg($today);
+        $weekAgg = $agg($weekStart);
+        $monthAgg = $agg($monthStart);
+        $allAgg = $agg(null);
+
+        // PDO returns aggregate columns as strings — cast explicitly.
+        $period = fn($a) => [
+            'earnings' => (float) ($a->earnings ?? 0),
+            'gross' => (float) ($a->gross ?? 0),
+            'commission' => (float) ($a->commission ?? 0),
+            'trips' => (int) $a->trips,
+            'avg_earning' => (float) ($a->avg_earning ?? 0),
+            'distance_km' => (float) ($a->distance_km ?? 0),
+        ];
+
+        $yesterdayEarnings = Order::where('driver_id', $driver->id)
             ->where('status', 'delivered')
-            ->where('delivered_at', '>=', $today)
-            ->sum('delivery_fee');
+            ->whereBetween('delivered_at', [$yesterday, $today])
+            ->selectRaw("SUM($net) as e")->value('e');
+
+        // Last 7 days, grouped by date; fill gaps so every day is present.
+        $rows = Order::where('driver_id', $driver->id)
+            ->where('status', 'delivered')
+            ->where('delivered_at', '>=', now()->subDays(6)->startOfDay())
+            ->selectRaw("DATE(delivered_at) as d, SUM($net) as earnings, COUNT(*) as trips")
+            ->groupBy('d')
+            ->get()
+            ->keyBy('d');
+
+        $daily = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $row = $rows->get($date);
+            $daily[] = [
+                'date' => $date,
+                'earnings' => (float) ($row->earnings ?? 0),
+                'trips' => (int) ($row->trips ?? 0),
+            ];
+        }
 
         $history = Order::where('driver_id', $driver->id)
             ->where('status', 'delivered')
@@ -240,12 +302,24 @@ class DriverController extends Controller
             ->paginate(20);
 
         return response()->json([
-            'today' => round($todayEarnings, 2),
+            'today' => $period($todayAgg),
+            'week' => $period($weekAgg),
+            'month' => $period($monthAgg),
+            'all_time' => [
+                'earnings' => (float) ($allAgg->earnings ?? 0),
+                'commission' => (float) ($allAgg->commission ?? 0),
+                'trips' => (int) $allAgg->trips,
+            ],
+            'yesterday_earnings' => (float) $yesterdayEarnings,
+            'daily_breakdown' => $daily,
             'history' => $history->through(fn($o) => [
                 'order_no' => $o->order_no,
                 'sender' => $o->sender?->displayName(),
                 'area' => $o->customer_address,
-                'earning' => $o->delivery_fee,
+                'earning' => (float) ($o->driver_payout ?? $o->delivery_fee),
+                'gross' => (float) $o->delivery_fee,
+                'commission' => (float) ($o->driver_commission ?? 0),
+                'distance_km' => $o->distance_km !== null ? (float) $o->distance_km : null,
                 'delivered_at' => $o->delivered_at,
             ]),
         ]);

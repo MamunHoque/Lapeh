@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\MetaController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SenderController;
 use App\Http\Controllers\Customer\CustomerController;
 use Illuminate\Support\Facades\Route;
@@ -19,13 +20,24 @@ Route::prefix('auth')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::post('fcm-token', [AuthController::class, 'updateFcmToken']);
         Route::patch('locale', [AuthController::class, 'updateLocale']);
+        Route::patch('profile', [AuthController::class, 'updateProfile']);
+        Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,1');
         Route::post('resend-otp', [AuthController::class, 'resendOtp'])->middleware('throttle:5,1');
     });
 });
 
+// ─── Notifications (all authenticated roles) ─────────────────────────────────
+Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('read-all', [NotificationController::class, 'markAllRead']);
+    Route::patch('{notification}/read', [NotificationController::class, 'markRead']);
+});
+
 // ─── Public reference data ───────────────────────────────────────────────────
 Route::get('meta', [MetaController::class, 'index']);
+Route::get('meta/app-config', [MetaController::class, 'appConfig']);
 Route::get('geocode/reverse', [MetaController::class, 'reverseGeocode'])
     ->middleware(['auth:sanctum', 'throttle:60,1']);
 

@@ -1,5 +1,6 @@
 import '../api_client.dart';
 import '../models/order_model.dart';
+import '../models/user_model.dart';
 
 class SenderService {
   final _api = ApiClient();
@@ -38,7 +39,8 @@ class SenderService {
     );
   }
 
-  Future<void> updateProfile({
+  Future<UserModel> updateProfile({
+    String? name,
     String? defaultPickupAddress,
     double? defaultPickupLat,
     double? defaultPickupLng,
@@ -46,7 +48,8 @@ class SenderService {
     String? businessCategory,
     String? contactPersonName,
   }) async {
-    await _api.dio.patch('/sender/profile', data: {
+    final res = await _api.dio.patch('/sender/profile', data: {
+      if (name != null) 'name': name,
       if (defaultPickupAddress != null) 'default_pickup_address': defaultPickupAddress,
       if (defaultPickupLat != null) 'default_pickup_lat': defaultPickupLat,
       if (defaultPickupLng != null) 'default_pickup_lng': defaultPickupLng,
@@ -54,6 +57,7 @@ class SenderService {
       if (businessCategory != null) 'business_category': businessCategory,
       if (contactPersonName != null) 'contact_person_name': contactPersonName,
     });
+    return UserModel.fromJson(res.data['user']);
   }
 
   Future<List<OrderModel>> listOrders({String? status}) async {

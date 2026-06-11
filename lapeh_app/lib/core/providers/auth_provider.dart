@@ -71,6 +71,15 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
       state = AsyncData(user.copyWith(locale: locale));
     }
   }
+
+  /// Replace the cached user after a profile/password update returns fresh data.
+  void setUser(UserModel user) => state = AsyncData(user);
+
+  /// Re-fetch the authenticated user from the backend.
+  Future<void> refreshUser() async {
+    final user = await _service.me();
+    state = AsyncData(user);
+  }
 }
 
 final authProvider = AsyncNotifierProvider<AuthNotifier, UserModel?>(AuthNotifier.new);

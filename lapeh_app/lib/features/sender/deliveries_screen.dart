@@ -57,23 +57,38 @@ class _OrderList extends ConsumerWidget {
       color: AppColors.pink,
       onRefresh: () async => _refresh(ref),
       child: ordersAsync.when(
-      loading: () => ListView(children: const [
-        SizedBox(height: 220),
-        Center(child: CircularProgressIndicator(color: AppColors.pink)),
-      ]),
-      error: (e, _) => ListView(children: [
-        const SizedBox(height: 160),
-        ErrorRetry(error: e, onRetry: () => _refresh(ref)),
-      ]),
+      loading: () => const CustomScrollView(
+        physics: AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: CircularProgressIndicator(color: AppColors.pink)),
+          ),
+        ],
+      ),
+      error: (e, _) => CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: ErrorRetry(error: e, onRetry: () => _refresh(ref)),
+          ),
+        ],
+      ),
       data: (orders) {
         final filtered = activeOnly
             ? orders.where((o) => !o.isTerminal).toList()
             : orders;
         if (filtered.isEmpty) {
-          return ListView(children: [
-            const SizedBox(height: 60),
-            EmptyState(message: tr('no_orders')),
-          ]);
+          return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(message: tr('no_orders')),
+              ),
+            ],
+          );
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),

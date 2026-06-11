@@ -48,6 +48,8 @@ class AuthController extends Controller
      */
     public function registerSender(Request $request, OtpService $otp): JsonResponse
     {
+        abort_unless(settings('registration.sender_enabled', true), 403, 'Sender registration is currently closed.');
+
         $data = $request->validate([
             'type' => 'required|in:individual,business',
             'name' => 'required|string|max:255',
@@ -127,6 +129,8 @@ class AuthController extends Controller
 
     public function registerDriver(Request $request): JsonResponse
     {
+        abort_unless(settings('registration.driver_enabled', true), 403, 'Driver registration is currently closed.');
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:users,phone',
@@ -181,46 +185,61 @@ class AuthController extends Controller
         return response()->json(['message' => 'Locale updated.']);
     }
 
+    /**
+     * Update the authenticated user's own account fields (any role).
+     * Phone is intentionally read-only — changing it requires a fresh OTP flow.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'avatar' => 'nullable|file|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        $update = [];
+        if ($request->has('name')) $update['name'] = $data['name'];
+        if ($request->has('email')) $update['email'] = $data['email'];
+
+        if ($request->hasFile('avatar')) {
+            // Drop the previous file so avatars don't accumulate on disk.
+            if ($user->avatar) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar);
+            }
+            $update['avatar'] = $request->file('avatar')->store('avatars', 'public');
+        }
+
+        $user->update($update);
+
+        ActivityLog::record('auth.profile_updated', $user, ['name' => $user->name], $user);
+
+        return response()->json(['user' => $this->userPayload($user->fresh(['sender', 'driver']))]);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages(['current_password' => 'Current password is incorrect.']);
+        }
+
+        $user->update(['password' => $request->password]);
+
+        ActivityLog::record('auth.password_changed', $user, [], $user);
+
+        return response()->json(['message' => 'Password updated.']);
+    }
+
     protected function userPayload(User $user): array
     {
-        $payload = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'phone' => $user->phone,
-            'email' => $user->email,
-            'role' => $user->role,
-            'status' => $user->status,
-            'locale' => $user->locale,
-            'avatar' => $user->avatar,
-            'phone_verified' => $user->isPhoneVerified(),
-        ];
-
-        if ($user->isDriver() && $user->driver) {
-            $payload['driver'] = [
-                'id' => $user->driver->id,
-                'status' => $user->driver->status,
-                'vehicle_type' => $user->driver->vehicle_type,
-                'vehicle_plate' => $user->driver->vehicle_plate,
-                'rating_avg' => $user->driver->rating_avg,
-                'is_verified' => $user->driver->is_verified,
-            ];
-        }
-
-        if ($user->isSender() && $user->sender) {
-            $s = $user->sender;
-            $payload['sender'] = [
-                'id' => $s->id,
-                'type' => $s->type,
-                'business_name' => $s->business_name,
-                'business_category' => $s->business_category,
-                'contact_person_name' => $s->contact_person_name,
-                'default_pickup_address' => $s->default_pickup_address,
-                'default_pickup_lat' => $s->default_pickup_lat,
-                'default_pickup_lng' => $s->default_pickup_lng,
-                'status' => $s->status,
-            ];
-        }
-
-        return $payload;
+        return $user->apiPayload();
     }
 }

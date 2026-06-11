@@ -48,6 +48,23 @@
                 {{ __('admin.sign_in') }}
             </button>
         </form>
+
+        @if(app()->environment('local'))
+            <div style="margin-top:18px;background:#fff;border:1px dashed var(--line);border-radius:14px;padding:16px 18px;">
+                <p style="font-size:12px;font-weight:600;color:var(--slate);margin-bottom:10px;">{{ __('admin.demo_login') }}</p>
+                <button type="button" onclick="demoLogin()"
+                    style="width:100%;padding:11px;background:#F4F6FB;color:var(--ink);border:1px solid var(--line);border-radius:10px;font-family:'Sora',sans-serif;font-weight:600;font-size:13px;cursor:pointer;">
+                    {{ __('admin.demo_admin') }}
+                </button>
+            </div>
+            <script>
+                function demoLogin() {
+                    document.querySelector('[name=phone]').value = '+9710000000';
+                    document.querySelector('[name=password]').value = 'admin1234';
+                    document.querySelector('form').submit();
+                }
+            </script>
+        @endif
     </div>
 </body>
 </html>

@@ -84,6 +84,10 @@ class _ReportsBody extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(child: _Mini(tr('avg_fee'), '${r.avgFee.toStringAsFixed(0)} AED')),
         ]),
+        if (r.commission > 0) ...[
+          const SizedBox(height: 8),
+          _Mini(tr('commission_charged'), '${r.commission.toStringAsFixed(2)} AED'),
+        ],
         const SizedBox(height: 18),
         SectionHeader(tr('recent')),
         const SizedBox(height: 10),

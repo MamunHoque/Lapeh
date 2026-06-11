@@ -41,17 +41,26 @@ class UserModel {
         sender: j['sender'] != null ? SenderProfile.fromJson(j['sender']) : null,
       );
 
-  UserModel copyWith({String? locale, bool? phoneVerified, SenderProfile? sender}) => UserModel(
+  UserModel copyWith({
+    String? name,
+    String? email,
+    String? locale,
+    String? avatar,
+    bool? phoneVerified,
+    DriverProfile? driver,
+    SenderProfile? sender,
+  }) =>
+      UserModel(
         id: id,
-        name: name,
+        name: name ?? this.name,
         phone: phone,
-        email: email,
+        email: email ?? this.email,
         role: role,
         status: status,
         locale: locale ?? this.locale,
-        avatar: avatar,
+        avatar: avatar ?? this.avatar,
         phoneVerified: phoneVerified ?? this.phoneVerified,
-        driver: driver,
+        driver: driver ?? this.driver,
         sender: sender ?? this.sender,
       );
 

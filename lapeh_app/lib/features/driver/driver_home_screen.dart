@@ -126,57 +126,120 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final user = ref.watch(authProvider).valueOrNull;
     final driverProfile = user?.driver;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+    return Stack(
       children: [
-        Row(children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(user?.name ?? tr('driver'),
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.slate, fontWeight: FontWeight.w600)),
-                Row(children: [
-                  const Icon(Icons.star, size: 15, color: AppColors.amber),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${driverProfile?.ratingAvg.toStringAsFixed(1) ?? "–"} · ${driverProfile?.vehiclePlate ?? "–"}',
-                    style: T.h2,
+        // Full-bleed map fills the home tab; shell already reserves the nav bar.
+        const Positioned.fill(child: _DriverMap()),
+
+        // Subtle top gradient so the floating header stays readable over the map.
+        const Positioned(
+          top: 0, left: 0, right: 0,
+          child: IgnorePointer(
+            child: SizedBox(
+              height: 140,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x33000000), Color(0x00000000)],
                   ),
-                ]),
-              ],
+                ),
+              ),
             ),
           ),
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.line)),
-            child: const Icon(Icons.account_balance_wallet_outlined, size: 19),
-          ),
-        ]),
-        const SizedBox(height: 14),
-        const _DriverMiniMap(height: 210),
-        const SizedBox(height: 14),
-        _StatusToggle(
-          online: online,
-          onChanged: (v) async {
-            if (v) {
-              final outcome = await LocationService().requestPermissionDetailed();
-              if (outcome != LocationOutcome.granted) {
-                if (mounted) _showPermissionIssue(outcome);
-                return;
-              }
-              await ref.read(driverStatusProvider.notifier).goOnline();
-              LocationService().startBroadcasting();
-              _startPolling();
-            } else {
-              _stopPolling();
-              LocationService().stopBroadcasting();
-              await ref.read(driverStatusProvider.notifier).goOffline();
-            }
-          },
         ),
-        const SizedBox(height: 14),
-        _EarningsMini(),
+
+        // Floating driver header.
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.line),
+                  boxShadow: const [BoxShadow(color: Color(0x1A000000), blurRadius: 14, offset: Offset(0, 4))],
+                ),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(user?.name ?? tr('driver'),
+                            style: const TextStyle(fontSize: 12.5, color: AppColors.slate, fontWeight: FontWeight.w600)),
+                        Row(children: [
+                          const Icon(Icons.star, size: 15, color: AppColors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${driverProfile?.ratingAvg.toStringAsFixed(1) ?? "–"} · ${driverProfile?.vehiclePlate ?? "–"}',
+                            style: T.h2,
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.line)),
+                    child: const Icon(Icons.account_balance_wallet_outlined, size: 19),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+
+        // Bottom action panel pinned above the nav bar.
+        Positioned(
+          left: 0, right: 0, bottom: 0,
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [BoxShadow(color: Color(0x1F000000), blurRadius: 18, offset: Offset(0, -4))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 38, height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(color: AppColors.line, borderRadius: BorderRadius.circular(2)),
+                  ),
+                  _StatusToggle(
+                    online: online,
+                    onChanged: (v) async {
+                      if (v) {
+                        final outcome = await LocationService().requestPermissionDetailed();
+                        if (outcome != LocationOutcome.granted) {
+                          if (mounted) _showPermissionIssue(outcome);
+                          return;
+                        }
+                        await ref.read(driverStatusProvider.notifier).goOnline();
+                        LocationService().startBroadcasting();
+                        _startPolling();
+                      } else {
+                        _stopPolling();
+                        LocationService().stopBroadcasting();
+                        await ref.read(driverStatusProvider.notifier).goOffline();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _EarningsMini(),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -236,9 +299,9 @@ class _EarningsMini extends ConsumerWidget {
       ]),
       error: (_, __) => const SizedBox(),
       data: (e) => Row(children: [
-        Expanded(child: _Mini(tr('today'), 'AED ${e.today.toStringAsFixed(0)}')),
+        Expanded(child: _Mini(tr('today'), 'AED ${e.today.earnings.toStringAsFixed(0)}')),
         const SizedBox(width: 8),
-        Expanded(child: _Mini(tr('trips'), '${e.history.length}')),
+        Expanded(child: _Mini(tr('trips'), '${e.today.trips}')),
         const SizedBox(width: 8),
         Expanded(child: _Mini(tr('online'), '–')),
       ]),
@@ -264,14 +327,13 @@ class _Mini extends StatelessWidget {
 
 /// Live map of the driver's own position. Falls back to the painted
 /// placeholder while permission is pending or location is unavailable.
-class _DriverMiniMap extends StatefulWidget {
-  final double height;
-  const _DriverMiniMap({required this.height});
+class _DriverMap extends StatefulWidget {
+  const _DriverMap();
   @override
-  State<_DriverMiniMap> createState() => _DriverMiniMapState();
+  State<_DriverMap> createState() => _DriverMapState();
 }
 
-class _DriverMiniMapState extends State<_DriverMiniMap> {
+class _DriverMapState extends State<_DriverMap> {
   GoogleMapController? _ctrl;
   LatLng? _pos;
   Timer? _timer;
@@ -303,32 +365,29 @@ class _DriverMiniMapState extends State<_DriverMiniMap> {
   Widget build(BuildContext context) {
     if (_pos == null) {
       return MapPlaceholder(
-        height: widget.height,
+        height: double.infinity,
+        radius: BorderRadius.zero,
         showRoute: false,
         dropLabel: '',
         pickupLabel: tr('you_marker'),
         movingDotT: null,
       );
     }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: SizedBox(
-        height: widget.height,
-        child: GoogleMap(
-          initialCameraPosition: CameraPosition(target: _pos!, zoom: 15),
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-          markers: {
-            Marker(
-              markerId: const MarkerId('you'),
-              position: _pos!,
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-              infoWindow: InfoWindow(title: tr('you_marker')),
-            ),
-          },
-          onMapCreated: (c) => _ctrl = c,
-        ),
+    return SizedBox.expand(
+      child: GoogleMap(
+        initialCameraPosition: CameraPosition(target: _pos!, zoom: 15),
+        myLocationEnabled: true,
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: false,
+        markers: {
+          Marker(
+            markerId: const MarkerId('you'),
+            position: _pos!,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+            infoWindow: InfoWindow(title: tr('you_marker')),
+          ),
+        },
+        onMapCreated: (c) => _ctrl = c,
       ),
     );
   }

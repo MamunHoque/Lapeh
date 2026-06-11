@@ -32,9 +32,9 @@
   <title>Lapeh</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- google_maps_flutter web requires the Maps JavaScript SDK loaded here.
-       Without it: "TypeError: Cannot read properties of undefined (reading 'maps')". -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDlELuIJTtPvbK_dKgKilYPQZRf5K_OTE4"></script>
+  <!-- The Maps JavaScript SDK is injected at runtime by the app using the
+       client key fetched from /api/meta/app-config (see core/maps_bootstrap_web.dart),
+       so there is no hardcoded key here. -->
 </head>
 <body>
   <!--

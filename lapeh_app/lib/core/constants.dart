@@ -7,6 +7,8 @@ class ApiConfig {
     'API_URL',
     defaultValue: 'http://127.0.0.1:8000/api',
   );
+  // Offline fallback only. The live client Maps key comes from the API
+  // (GET /api/meta/app-config → maps_key); see AppConfig / maps_bootstrap_web.
   static const googleMapsKey = 'AIzaSyDlELuIJTtPvbK_dKgKilYPQZRf5K_OTE4';
 }
 

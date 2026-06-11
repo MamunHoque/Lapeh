@@ -16,6 +16,7 @@ class Order extends Model
         'customer_name', 'customer_phone',
         'order_value', 'notes', 'customer_lat', 'customer_lng',
         'customer_address', 'distance_km', 'delivery_fee', 'total_amount', 'status',
+        'sender_commission', 'driver_commission', 'driver_payout',
         'location_token', 'payment_status', 'otp_code',
         'assigned_at', 'picked_up_at', 'delivered_at', 'cancelled_reason',
     ];
@@ -29,6 +30,9 @@ class Order extends Model
             'order_value' => 'float',
             'delivery_fee' => 'float',
             'total_amount' => 'float',
+            'sender_commission' => 'float',
+            'driver_commission' => 'float',
+            'driver_payout' => 'float',
             'distance_km' => 'float',
             'pickup_lat' => 'float',
             'pickup_lng' => 'float',

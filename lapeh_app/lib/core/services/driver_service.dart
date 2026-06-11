@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../api_client.dart';
 import '../models/order_model.dart';
+import '../models/driver_earnings_model.dart';
 
 class DriverService {
   final _api = ApiClient();
@@ -53,13 +54,8 @@ class DriverService {
     );
   }
 
-  Future<({double today, List<dynamic> history})> earnings() async {
+  Future<DriverEarningsData> earnings() async {
     final res = await _api.dio.get('/driver/earnings');
-    final histData = res.data['history'];
-    final List<dynamic> trips = histData is Map ? (histData['data'] as List? ?? []) : (histData as List? ?? []);
-    return (
-      today: asDouble(res.data['today']) ?? 0,
-      history: trips,
-    );
+    return DriverEarningsData.fromJson(Map<String, dynamic>.from(res.data as Map));
   }
 }

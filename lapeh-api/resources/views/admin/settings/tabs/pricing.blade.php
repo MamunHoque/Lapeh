@@ -1,16 +1,16 @@
-@extends('admin.layout')
-@section('title', __('admin.pricing_config'))
-@section('content')
-<div style="max-width:560px;">
-<div class="card">
-    <div class="card-head"><h3 class="sora" style="font-size:15px;font-weight:700;">{{ __('admin.delivery_pricing') }}</h3></div>
-    <form method="POST" action="{{ route('admin.pricing.update') }}" style="padding:24px;">
-        @csrf @method('PUT')
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+@php($pricing = $data['pricing'])
+<form method="POST" action="{{ route('admin.pricing.update') }}" class="settings-form card">
+    @csrf @method('PUT')
+    <div class="settings-section-head">
+        <h3 class="sora">{{ __('admin.delivery_pricing') }}</h3>
+        <p>{{ __('admin.general_pricing_note') }}</p>
+    </div>
+    <div class="settings-body">
+        <div class="grid-2">
             <div class="form-group">
                 <label class="form-label">{{ __('admin.base_fee_aed') }}</label>
                 <input type="number" name="base_fee" value="{{ old('base_fee', $pricing->base_fee) }}" step="0.01" required class="form-input">
-                <p style="font-size:11.5px;color:var(--slate);margin-top:4px;">{{ __('admin.base_fee_help') }}</p>
+                <p class="field-help">{{ __('admin.base_fee_help') }}</p>
             </div>
             <div class="form-group">
                 <label class="form-label">{{ __('admin.per_km_fee_aed') }}</label>
@@ -27,14 +27,14 @@
             <div class="form-group">
                 <label class="form-label">{{ __('admin.offer_timeout') }}</label>
                 <input type="number" name="request_timeout_sec" value="{{ old('request_timeout_sec', $pricing->request_timeout_sec) }}" required class="form-input">
-                <p style="font-size:11.5px;color:var(--slate);margin-top:4px;">{{ __('admin.offer_timeout_help') }}</p>
+                <p class="field-help">{{ __('admin.offer_timeout_help') }}</p>
             </div>
         </div>
-        <div style="background:var(--bg);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:var(--slate);">
-            <b style="color:var(--ink);">{{ __('admin.fee_formula') }}</b> {{ __('admin.fee_formula_body') }}
+        <div class="help-box">
+            <b>{{ __('admin.fee_formula') }}</b> {{ __('admin.fee_formula_body') }}
         </div>
+    </div>
+    <div class="settings-foot">
         <button type="submit" class="btn btn-primary">{{ __('admin.save_pricing') }}</button>
-    </form>
-</div>
-</div>
-@endsection
+    </div>
+</form>

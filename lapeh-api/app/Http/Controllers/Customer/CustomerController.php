@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\Payment;
+use App\Models\ActivityLog;
 use App\Services\FeeCalculator;
 use App\Services\MapService;
 use App\Services\DispatchService;
+use App\Services\Payment\PaymentManager;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CustomerController extends Controller
 {
@@ -103,51 +106,89 @@ class CustomerController extends Controller
 
         abort_unless($order->status === 'location_confirmed', 422, 'Confirm location first.');
 
-        // In dev: advance straight to paid (no real gateway)
-        if (config('app.env') === 'local') {
-            $payment = Payment::create([
-                'order_id' => $order->id,
-                'amount' => $order->total_amount,
-                'currency' => 'AED',
-                'gateway' => 'sandbox',
-                'gateway_reference' => 'SANDBOX-' . strtoupper(uniqid()),
-                'status' => 'paid',
-                'paid_at' => now(),
-            ]);
+        // Route through the active gateway (Stripe or Telr). In sandbox mode
+        // with no live credentials the driver auto-approves, preserving the
+        // local demo flow; with live keys it returns a hosted-checkout redirect.
+        $gateway = app(PaymentManager::class)->active();
+        $result = $gateway->charge($order);
 
-            $order->update(['payment_status' => 'paid', 'status' => 'paid']);
+        if ($result['status'] === 'paid') {
+            $this->recordPaidPayment($order, $gateway->name(), $result['reference']);
+            $this->advanceOrderPaid($order, $gateway->name());
 
-            OrderStatusLog::create([
-                'order_id' => $order->id,
-                'status' => 'paid',
-                'note' => 'Sandbox payment',
-            ]);
-
-            // Advance to searching_driver and trigger dispatch
-            $order->update(['status' => 'searching_driver']);
-            OrderStatusLog::create([
-                'order_id' => $order->id,
-                'status' => 'searching_driver',
-            ]);
-
-            broadcast(new OrderStatusUpdated($order->fresh()));
-            app(DispatchService::class)->dispatch($order);
-
-            \App\Models\ActivityLog::record('order.paid', $order, [
-                'order_no' => $order->order_no,
-                'amount' => (float) $order->total_amount,
-                'gateway' => 'sandbox',
-            ], null, 'customer');
-
-            if (request()->wantsJson()) {
-                return response()->json(['status' => 'paid', 'message' => 'Sandbox payment accepted.']);
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'paid', 'message' => $result['message'] ?? 'Payment accepted.']);
             }
-
             return redirect("/c/{$token}");
         }
 
-        // TODO: Real gateway integration
-        return response()->json(['message' => 'Payment gateway not configured.'], 501);
+        if ($result['status'] === 'pending') {
+            Payment::create([
+                'order_id' => $order->id,
+                'amount' => $order->total_amount,
+                'currency' => $this->currency(),
+                'gateway' => $gateway->name(),
+                'gateway_reference' => $result['reference'],
+                'status' => 'pending',
+            ]);
+            $order->update(['status' => 'waiting_for_payment']);
+
+            if (! empty($result['redirect_url']) && ! $request->wantsJson()) {
+                return redirect($result['redirect_url']);
+            }
+            return response()->json([
+                'status' => 'pending',
+                'gateway' => $gateway->name(),
+                'reference' => $result['reference'],
+                'redirect_url' => $result['redirect_url'] ?? null,
+            ]);
+        }
+
+        return response()->json(['message' => $result['message'] ?? 'Payment failed.'], 502);
+    }
+
+    private function currency(): string
+    {
+        return (string) settings('payment.currency', 'AED');
+    }
+
+    /** Upsert the order's payment row as paid. */
+    private function recordPaidPayment(Order $order, string $gateway, string $reference): void
+    {
+        Payment::updateOrCreate(
+            ['order_id' => $order->id],
+            [
+                'amount' => $order->total_amount,
+                'currency' => $this->currency(),
+                'gateway' => $gateway,
+                'gateway_reference' => $reference,
+                'status' => 'paid',
+                'paid_at' => now(),
+            ],
+        );
+    }
+
+    /** Move a paid order into dispatch and notify drivers. Idempotent. */
+    private function advanceOrderPaid(Order $order, string $gateway): void
+    {
+        if (in_array($order->status, ['searching_driver', 'driver_assigned', 'arrived_at_pickup', 'picked_up', 'on_the_way', 'delivered'])) {
+            return;
+        }
+
+        $order->update(['payment_status' => 'paid', 'status' => 'paid']);
+        OrderStatusLog::create(['order_id' => $order->id, 'status' => 'paid', 'note' => ucfirst($gateway) . ' payment']);
+
+        $order->update(['status' => 'searching_driver']);
+        OrderStatusLog::create(['order_id' => $order->id, 'status' => 'searching_driver']);
+
+        broadcast(new OrderStatusUpdated($order->fresh()));
+        app(DispatchService::class)->dispatch($order);
+
+        ActivityLog::record('order.paid', $order, [
+            'order_no' => $order->order_no,
+            'amount' => (float) $order->total_amount,
+            'gateway' => $gateway,
+        ], null, 'customer');
     }
 
     public function track(string $token)
@@ -175,22 +216,26 @@ class CustomerController extends Controller
 
     public function paymentWebhook(Request $request)
     {
-        // Verify HMAC signature from the gateway before trusting the payload.
-        $secret = config('services.payment.webhook_secret');
-        abort_if(blank($secret), 500, 'Payment webhook secret not configured.');
+        // Verify the signature against the active gateway (Stripe or Telr).
+        $gateway = app(PaymentManager::class)->active();
+        abort_unless($gateway->verifyWebhook($request), 401, 'Invalid webhook signature.');
 
-        $signature = $request->header('X-Signature', '');
-        $expected = hash_hmac('sha256', $request->getContent(), $secret);
-        abort_unless(hash_equals($expected, $signature), 401, 'Invalid webhook signature.');
+        Log::info('Payment webhook received', ['gateway' => $gateway->name()]);
 
-        $payload = $request->all();
-        \Illuminate\Support\Facades\Log::info('Payment webhook received', $payload);
+        // Reconcile by the gateway reference present in the payload.
+        $ref = $request->input('reference')
+            ?? $request->input('id')
+            ?? $request->input('data.object.id')
+            ?? $request->input('tran_ref')
+            ?? data_get($request->all(), 'order.ref');
 
-        // Reconcile payment status from the verified payload.
-        if (! empty($payload['reference'])) {
-            $payment = Payment::where('gateway_reference', $payload['reference'])->first();
-            if ($payment && ($payload['status'] ?? null) === 'paid') {
+        if ($ref) {
+            $payment = Payment::where('gateway_reference', $ref)->first();
+            if ($payment && $payment->status !== 'paid') {
                 $payment->update(['status' => 'paid', 'paid_at' => now()]);
+                if ($payment->order) {
+                    $this->advanceOrderPaid($payment->order, $gateway->name());
+                }
             }
         }
 

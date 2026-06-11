@@ -23,7 +23,8 @@ class FcmService
 
     public function __construct()
     {
-        $path = config('services.fcm.credentials');
+        // Settings store takes precedence; .env remains the fallback.
+        $path = settings('fcm.credentials_path', config('services.fcm.credentials'));
         if (! $path) {
             return;
         }
@@ -37,10 +38,16 @@ class FcmService
         $json = json_decode((string) file_get_contents($resolved), true);
         if (is_array($json) && isset($json['client_email'], $json['private_key'])) {
             $this->credentials = $json;
-            $this->projectId = config('services.fcm.project_id') ?: ($json['project_id'] ?? '');
+            $this->projectId = settings('fcm.project_id', config('services.fcm.project_id')) ?: ($json['project_id'] ?? '');
         } else {
             Log::warning('FCM credentials file is malformed', ['path' => $resolved]);
         }
+    }
+
+    /** Whether a usable service-account credential is loaded. */
+    public function isConfigured(): bool
+    {
+        return $this->credentials !== null && $this->projectId !== '';
     }
 
     /**

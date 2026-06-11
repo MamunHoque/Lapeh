@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminWebController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Customer\CustomerController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,7 +51,18 @@ Route::prefix('admin')->name('admin.')->middleware('admin.locale')->group(functi
         Route::get('reports', [AdminWebController::class, 'reports'])->name('reports');
         Route::get('sms', [AdminWebController::class, 'sms'])->name('sms');
         Route::get('activity-logs', [AdminWebController::class, 'activityLogs'])->name('activity-logs');
-        Route::get('settings', [AdminWebController::class, 'settings'])->name('settings');
+        // System Settings Hub (tabbed)
+        Route::get('settings', [SettingsController::class, 'index'])->name('settings');
+        Route::get('settings/backup/{name}/download', [SettingsController::class, 'backupDownload'])->name('settings.backup.download');
+        Route::post('settings/backup', [SettingsController::class, 'backupCreate'])->name('settings.backup.create');
+        Route::delete('settings/backup/{name}', [SettingsController::class, 'backupDelete'])->name('settings.backup.delete');
+        Route::post('settings/cache/clear', [SettingsController::class, 'clearCache'])->name('settings.cache.clear');
+        Route::post('settings/test/email', [SettingsController::class, 'testEmail'])->name('settings.test.email');
+        Route::post('settings/test/sms', [SettingsController::class, 'testSms'])->name('settings.test.sms');
+        Route::post('settings/test/payment', [SettingsController::class, 'testPayment'])->name('settings.test.payment');
+        Route::post('settings/test/push', [SettingsController::class, 'testPush'])->name('settings.test.push');
+        Route::put('settings/group/{group}', [SettingsController::class, 'update'])->name('settings.update');
+        Route::get('settings/{tab}', [SettingsController::class, 'index'])->name('settings.tab')->where('tab', '[a-z]+');
     });
 });
 

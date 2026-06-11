@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../api_client.dart';
 import '../models/user_model.dart';
 
@@ -77,6 +78,39 @@ class AuthService {
 
   Future<void> updateLocale(String locale) async {
     await _api.dio.patch('/auth/locale', data: {'locale': locale});
+  }
+
+  /// Update the current user's own account fields (name/email/avatar).
+  /// Uses multipart when an avatar file path is supplied. Returns updated user.
+  Future<UserModel> updateProfile({
+    String? name,
+    String? email,
+    List<int>? avatarBytes,
+    String avatarFilename = 'avatar.jpg',
+  }) async {
+    final map = <String, dynamic>{
+      // PHP doesn't parse multipart bodies on PATCH, so POST + Laravel's
+      // `_method` spoofing routes this to the PATCH endpoint correctly.
+      '_method': 'PATCH',
+      if (name != null) 'name': name,
+      if (email != null) 'email': email,
+      // Bytes (not a file path) so the same call works on web and mobile.
+      if (avatarBytes != null) 'avatar': MultipartFile.fromBytes(avatarBytes, filename: avatarFilename),
+    };
+    final res = await _api.dio.post(
+      '/auth/profile',
+      data: FormData.fromMap(map),
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    return UserModel.fromJson(res.data['user']);
+  }
+
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await _api.dio.post('/auth/change-password', data: {
+      'current_password': currentPassword,
+      'password': newPassword,
+      'password_confirmation': newPassword,
+    });
   }
 
   Future<bool> hasToken() async => (await _api.getToken()) != null;

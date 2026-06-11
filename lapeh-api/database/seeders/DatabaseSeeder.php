@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Driver;
+use App\Models\LapehNotification;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusLog;
@@ -125,6 +126,10 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Phone case', 'quantity' => 3, 'unit_price' => 40, 'description' => 'Clear silicone'],
         ]);
 
+        // ── Sample notifications for demo senders ────────────────────────────
+        $this->seedNotifications($indUser);
+        $this->seedNotifications($bizUser);
+
         // ── SMS templates ────────────────────────────────────────────────────
         SmsTemplate::create([
             'key' => 'order_created',
@@ -146,6 +151,39 @@ class DatabaseSeeder extends Seeder
             'content_ar' => 'تم توصيل طردك {order_no}!',
             'variables' => ['order_no'],
         ]);
+    }
+
+    private function seedNotifications(User $user): void
+    {
+        $samples = [
+            [
+                'title' => 'Welcome to Lapeh 👋',
+                'body' => 'Your account is ready. Create your first delivery request from the Home tab.',
+                'read_at' => now()->subDays(3),
+            ],
+            [
+                'title' => 'Driver assigned',
+                'body' => 'Bilal Hassan is on the way to pick up your parcel.',
+                'data' => ['type' => 'order_update'],
+                'read_at' => now()->subDay(),
+            ],
+            [
+                'title' => 'Delivery completed ✅',
+                'body' => 'Your parcel was delivered successfully. Tap to rate your driver.',
+                'data' => ['type' => 'delivered'],
+                'read_at' => null,
+            ],
+        ];
+
+        foreach ($samples as $s) {
+            LapehNotification::create([
+                'user_id' => $user->id,
+                'title' => $s['title'],
+                'body' => $s['body'],
+                'data' => $s['data'] ?? null,
+                'read_at' => $s['read_at'] ?? null,
+            ]);
+        }
     }
 
     private function seedOrder(Sender $sender, string $customer, string $phone, string $status, array $items): void
